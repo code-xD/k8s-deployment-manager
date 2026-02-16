@@ -157,9 +157,43 @@ kubectl describe pod -l app=api -n dep-manager
 kubectl logs -l app=api -n dep-manager
 ```
 
-**Image pull errors:**
-- For local: Ensure image is loaded into cluster
-- For registry: Check imagePullSecrets and registry credentials
+**Image pull errors (ImagePullBackOff):**
+
+1. **Build the Docker image first:**
+   ```bash
+   make docker-build
+   ```
+
+2. **Load image into your Kubernetes cluster:**
+
+   **For Minikube:**
+   ```bash
+   minikube image load k8s-deployment-manager-api:latest
+   ```
+
+   **For Kind:**
+   ```bash
+   kind load docker-image k8s-deployment-manager-api:latest
+   ```
+
+   **For Docker Desktop Kubernetes:**
+   The image should be available automatically if Docker Desktop is running.
+
+3. **Restart the deployment:**
+   ```bash
+   kubectl rollout restart deployment api -n dep-manager
+   ```
+
+4. **Check image exists:**
+   ```bash
+   docker images | grep k8s-deployment-manager-api
+   ```
+
+5. **For production/registry:**
+   - Tag and push image to your registry
+   - Update deployment.yaml with registry URL
+   - Set imagePullPolicy to Always
+   - Configure imagePullSecrets if needed
 
 **Service not accessible:**
 ```bash
