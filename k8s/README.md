@@ -36,7 +36,7 @@ k8s-deployment-manager/
 | Directory   | Purpose                          | Deploy when        |
 |------------|-----------------------------------|--------------------|
 | `postgres/`| PostgreSQL (StatefulSet, PVC)     | First (data store) |
-| `nats/`    | NATS (Deployment)                 | Second (messaging) |
+| `nats/`    | NATS with JetStream (Deployment)  | Second (messaging) |
 | `api/`     | Go API deployment (placeholder)    | After API code     |
 | `worker/`  | Go Worker deployment (placeholder)| After worker code  |
 

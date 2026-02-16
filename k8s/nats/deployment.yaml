@@ -29,6 +29,8 @@ spec:
             - name: config
               mountPath: /etc/nats
               readOnly: true
+            - name: jetstream-data
+              mountPath: /data/jetstream
           readinessProbe:
             tcpSocket:
               port: 4222
@@ -43,3 +45,6 @@ spec:
         - name: config
           configMap:
             name: nats-config
+        - name: jetstream-data
+          persistentVolumeClaim:
+            claimName: nats-jetstream-data
