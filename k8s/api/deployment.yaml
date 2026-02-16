@@ -17,7 +17,7 @@ spec:
       containers:
         - name: api
           image: k8s-deployment-manager-api:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
               name: http

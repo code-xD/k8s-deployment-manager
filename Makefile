@@ -25,9 +25,9 @@ docker-push:
 .PHONY: k8s-deploy
 k8s-deploy:
 	@echo "Deploying to Kubernetes..."
-	@kubectl apply -f k8s/api/
+	@kubectl apply -f k8s/api/ -n dep-manager
 
 .PHONY: k8s-delete
 k8s-delete:
 	@echo "Deleting Kubernetes resources..."
-	@kubectl delete -f k8s/api/
+	@kubectl delete -f k8s/api/ -n dep-manager

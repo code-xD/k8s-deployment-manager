@@ -4,6 +4,7 @@
 - Docker installed and running
 - Kubernetes cluster running (minikube, kind, or cloud cluster)
 - kubectl configured to connect to your cluster
+- Namespace `dep-manager` already created
 
 ## Quick Start
 
@@ -43,10 +44,10 @@ make k8s-deploy
 
 **Or manually:**
 ```bash
-kubectl apply -f k8s/api/
+kubectl apply -f k8s/api/ -n dep-manager
 ```
 
-This will create:
+This will create in the `dep-manager` namespace:
 - ConfigMap (`api-config`)
 - Deployment (`api`) with 2 replicas
 - Service (`api`)
@@ -55,23 +56,23 @@ This will create:
 
 ```bash
 # Check pods
-kubectl get pods -l app=api
+kubectl get pods -l app=api -n dep-manager
 
 # Check service
-kubectl get svc api
+kubectl get svc api -n dep-manager
 
 # Check deployment
-kubectl get deployment api
+kubectl get deployment api -n dep-manager
 
 # View logs
-kubectl logs -l app=api -f
+kubectl logs -l app=api -f -n dep-manager
 ```
 
 ### 5. Access the API
 
 **Port Forward (for local testing):**
 ```bash
-kubectl port-forward svc/api 8080:80
+kubectl port-forward svc/api 8080:80 -n dep-manager
 ```
 
 Then access:
@@ -79,8 +80,9 @@ Then access:
 - Swagger UI: http://localhost:8080/swagger/index.html
 
 **Inside the cluster:**
-- Service URL: `http://api:80/api/v1/ping`
-- Swagger UI: `http://api:80/swagger/index.html`
+- Service URL (same namespace): `http://api:80/api/v1/ping`
+- Service URL (cross namespace): `http://api.dep-manager.svc.cluster.local:80/api/v1/ping`
+- Swagger UI: `http://api:80/swagger/index.html` or `http://api.dep-manager.svc.cluster.local:80/swagger/index.html`
 
 ## Production Deployment
 
@@ -105,44 +107,54 @@ imagePullPolicy: Always  # Change from IfNotPresent
 ### 3. Deploy
 
 ```bash
-kubectl apply -f k8s/api/
+kubectl apply -f k8s/api/ -n dep-manager
 ```
 
 ## Useful Commands
+
+**Set default namespace (optional):**
+```bash
+kubectl config set-context --current --namespace=dep-manager
+```
 
 **Delete deployment:**
 ```bash
 make k8s-delete
 # or
-kubectl delete -f k8s/api/
+kubectl delete -f k8s/api/ -n dep-manager
 ```
 
 **Scale replicas:**
 ```bash
-kubectl scale deployment api --replicas=3
+kubectl scale deployment api --replicas=3 -n dep-manager
 ```
 
 **Update deployment (after image change):**
 ```bash
-kubectl rollout restart deployment api
+kubectl rollout restart deployment api -n dep-manager
 ```
 
 **View deployment status:**
 ```bash
-kubectl rollout status deployment api
+kubectl rollout status deployment api -n dep-manager
 ```
 
 **Get service URL:**
 ```bash
-kubectl get svc api
+kubectl get svc api -n dep-manager
+```
+
+**List all resources in namespace:**
+```bash
+kubectl get all -n dep-manager
 ```
 
 ## Troubleshooting
 
 **Pods not starting:**
 ```bash
-kubectl describe pod -l app=api
-kubectl logs -l app=api
+kubectl describe pod -l app=api -n dep-manager
+kubectl logs -l app=api -n dep-manager
 ```
 
 **Image pull errors:**
@@ -151,6 +163,18 @@ kubectl logs -l app=api
 
 **Service not accessible:**
 ```bash
-kubectl get endpoints api
-kubectl describe svc api
+kubectl get endpoints api -n dep-manager
+kubectl describe svc api -n dep-manager
+```
+
+**Check namespace:**
+```bash
+# List all namespaces
+kubectl get namespaces
+
+# Check current context namespace
+kubectl config view --minify | grep namespace
+
+# List resources in namespace
+kubectl get all -n dep-manager
 ```
