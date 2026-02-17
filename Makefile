@@ -10,9 +10,13 @@ gen-orm:
 	@go run cmd/gen-orm/main.go
 	@echo "GORM query code generated in internal/database/query/"
 
-.PHONY: run
+.PHONY: run run-worker
+
 run:
 	@go run cmd/api/main.go
+
+run-worker:
+	@go run cmd/worker/consumer/main.go
 
 .PHONY: build
 build:

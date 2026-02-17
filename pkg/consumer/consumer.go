@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
@@ -16,24 +17,26 @@ type NATSConsumer struct {
 	conn   *nats.Conn
 	logger *zap.Logger
 
-	mu     sync.Mutex
-	wg     sync.WaitGroup
-	routes []*RouteConfig
-	subs   []*nats.Subscription
+	mu              sync.Mutex
+	wg              sync.WaitGroup
+	routes          []*RouteConfig
+	subs            []*nats.Subscription
+	shutdownTimeout time.Duration
 }
 
 // NewNATSConsumer creates a new NATS consumer. js and conn must be non-nil;
 // the consumer will drain conn on Shutdown.
-func NewNATSConsumer(js nats.JetStreamContext, conn *nats.Conn, logger *zap.Logger) *NATSConsumer {
+func NewNATSConsumer(js nats.JetStreamContext, conn *nats.Conn, logger *zap.Logger, shutdownTimeout time.Duration) *NATSConsumer {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 	return &NATSConsumer{
-		js:     js,
-		conn:   conn,
-		logger: logger,
-		routes: nil,
-		subs:   nil,
+		js:              js,
+		conn:            conn,
+		logger:          logger,
+		routes:          nil,
+		subs:            nil,
+		shutdownTimeout: shutdownTimeout,
 	}
 }
 
@@ -162,7 +165,10 @@ func (c *NATSConsumer) wrapHandler(r *RouteConfig) func(*nats.Msg) {
 // messages), waits for in-flight handler tasks to complete (via WaitGroup), then
 // drains the NATS connection. If ctx is cancelled before the wait completes,
 // Shutdown proceeds to close the connection and returns ctx.Err().
-func (c *NATSConsumer) Shutdown(ctx context.Context) error {
+func (c *NATSConsumer) Shutdown() {
+	ctx, cancel := context.WithTimeout(context.Background(), c.shutdownTimeout)
+	defer cancel()
+
 	if err := c.drainSubs(); err != nil {
 		c.logger.Warn("Error draining subscriptions", zap.Error(err))
 	}
@@ -192,9 +198,15 @@ func (c *NATSConsumer) Shutdown(ctx context.Context) error {
 		if c.conn != nil {
 			c.conn.Close()
 		}
-		return ctx.Err()
+		err := ctx.Err()
+		if err != nil {
+			c.logger.Warn("Shutdown context cancelled while waiting for in-flight tasks with error", zap.Error(err))
+		} else {
+			c.logger.Info("Shutdown context cancelled while waiting for in-flight tasks")
+		}
+
 	case <-done:
-		return nil
+		c.logger.Info("Consumer shutdown complete")
 	}
 }
 

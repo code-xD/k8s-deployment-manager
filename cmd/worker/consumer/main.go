@@ -1,12 +1,12 @@
 package main
 
 import (
-	"context"
-	"time"
-
 	"go.uber.org/zap"
 
-	"github.com/code-xd/k8s-deployment-manager/internal/repository/nats/common"
+	"github.com/code-xd/k8s-deployment-manager/internal/repository/k8sclient"
+	natscommon "github.com/code-xd/k8s-deployment-manager/internal/repository/nats/common"
+	"github.com/code-xd/k8s-deployment-manager/internal/repository/postgres"
+	pgcommon "github.com/code-xd/k8s-deployment-manager/internal/repository/postgres/common"
 	"github.com/code-xd/k8s-deployment-manager/internal/service/workerService"
 	"github.com/code-xd/k8s-deployment-manager/internal/worker"
 	"github.com/code-xd/k8s-deployment-manager/pkg/config"
@@ -32,8 +32,15 @@ func main() {
 		log.Fatal("Failed to load config", zap.Error(err))
 	}
 
+	// Initialize database connection
+	db, err := pgcommon.NewDB(&workerCfg.Database, log)
+	if err != nil {
+		log.Fatal("Failed to connect to database", zap.Error(err))
+	}
+	defer db.Close()
+
 	// Initialize NATS connection
-	natsConn, err := common.NewNATS(&workerCfg.Nats, log)
+	natsConn, err := natscommon.NewNATS(&workerCfg.Nats, log)
 	if err != nil {
 		log.Fatal("Failed to connect to NATS", zap.Error(err))
 	}
@@ -46,11 +53,16 @@ func main() {
 		log.Fatal("Failed to ensure JetStream stream", zap.Error(err))
 	}
 
-	// Create consumer
-	nc := consumer.NewNATSConsumer(natsConn.JS, natsConn.Conn, log)
+	// Initialize repositories
+	deploymentRequestRepo := postgres.NewDeploymentRequestRepository(db)
+	k8sDeployment, err := k8sclient.NewDeployment(".")
+	if err != nil {
+		log.Fatal("Failed to create k8s deployment client", zap.Error(err))
+	}
 
-	// Wire services and register routes via router (like API stack)
-	deploymentRequest := workerService.NewDeploymentRequestService(log)
+	// Create consumer and wire services
+	nc := consumer.NewNATSConsumer(natsConn.JS, natsConn.Conn, log, workerCfg.Consumer.ShutdownTimeout)
+	deploymentRequest := workerService.NewDeploymentRequestService(deploymentRequestRepo, k8sDeployment, log)
 	worker.SetupRouter(nc, &workerCfg.Consumer, deploymentRequest, log)
 
 	// Start consuming
@@ -61,19 +73,7 @@ func main() {
 	log.Info("Consumer started", zap.String("channel", prod.DeploymentRequestChannel))
 
 	// Defer shutdown - runs when main returns (after WaitForShutdown)
-	defer func() {
-		timeout := workerCfg.Consumer.ShutdownTimeout
-		if timeout == 0 {
-			timeout = 30 * time.Second
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
-		if err := nc.Shutdown(ctx); err != nil {
-			log.Warn("Consumer shutdown error", zap.Error(err))
-		} else {
-			log.Info("Consumer shutdown complete")
-		}
-	}()
+	defer nc.Shutdown()
 
 	// Block until shutdown signal
 	utils.WaitForShutdown()

@@ -60,3 +60,8 @@ func (r *DeploymentRequestRepository) GetByRequestID(ctx context.Context, reques
 	}
 	return nil, false, nil
 }
+
+// UpdateStatus updates the status of a deployment request by ID
+func (r *DeploymentRequestRepository) UpdateStatus(ctx context.Context, id interface{}, status models.DeploymentRequestStatus) error {
+	return r.db.WithContext(ctx).Model(&models.DeploymentRequest{}).Where("id = ?", id).Update("status", status).Error
+}

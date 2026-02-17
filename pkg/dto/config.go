@@ -38,6 +38,7 @@ type ProducerConfig struct {
 
 // WorkerConfig holds configuration for the worker consumer
 type WorkerConfig struct {
+	Database DatabaseConfig `mapstructure:"database"`
 	Nats     NatsConfig     `mapstructure:"nats"`
 	Consumer ConsumerConfig `mapstructure:"consumer"`
 }
