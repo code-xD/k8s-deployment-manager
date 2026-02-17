@@ -24,6 +24,16 @@ type DatabaseConfig struct {
 // databaseConfig is an alias for backward compatibility
 type databaseConfig = DatabaseConfig
 
-type natsConfig struct {
-	URL string `mapstructure:"url"`
+type NatsConfig struct {
+	URL      string         `mapstructure:"url"`
+	Producer ProducerConfig `mapstructure:"producer"`
 }
+
+// ProducerConfig holds NATS producer channel names
+type ProducerConfig struct {
+	DeploymentRequestChannel string `mapstructure:"deployment_request_channel"`
+	DeploymentUpdateChannel  string `mapstructure:"deployment_update_channel"`
+}
+
+// natsConfig is an alias for backward compatibility
+type natsConfig = NatsConfig

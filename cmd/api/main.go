@@ -4,6 +4,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/code-xd/k8s-deployment-manager/internal/api"
+	"github.com/code-xd/k8s-deployment-manager/internal/repository/nats"
+	natscommon "github.com/code-xd/k8s-deployment-manager/internal/repository/nats/common"
 	"github.com/code-xd/k8s-deployment-manager/internal/repository/postgres"
 	"github.com/code-xd/k8s-deployment-manager/internal/repository/postgres/common"
 	"github.com/code-xd/k8s-deployment-manager/internal/service"
@@ -55,6 +57,25 @@ func main() {
 	}
 	defer db.Close()
 
+	// Initialize NATS connection and producer (concrete implementation - OK in composition root)
+	natsConn, err := natscommon.NewNATS(&apiCfg.Nats, dto.Log)
+	if err != nil {
+		dto.Log.Fatal("Failed to connect to NATS", zap.Error(err))
+	}
+	defer natsConn.Close()
+
+	// Ensure JetStream stream exists for deployment request/update subjects
+	subjects := []string{
+		apiCfg.Nats.Producer.DeploymentRequestChannel,
+		apiCfg.Nats.Producer.DeploymentUpdateChannel,
+	}
+	if err := natsConn.EnsureStream(natscommon.DefaultStreamName, subjects); err != nil {
+		dto.Log.Fatal("Failed to ensure JetStream stream", zap.Error(err))
+	}
+
+	natsProducer := natscommon.NewProducer(natsConn)
+	deploymentRequestPublisher := nats.NewDeploymentRequestProducer(natsProducer, &apiCfg.Nats.Producer)
+
 	// Initialize repositories (concrete implementations - OK in composition root)
 	// These implement interfaces from pkg/ports/ and are injected as interfaces
 	deploymentRequestRepo := postgres.NewDeploymentRequestRepository(db)
@@ -67,6 +88,7 @@ func main() {
 	deploymentRequestService := service.NewDeploymentRequestService(
 		deploymentRequestRepo,
 		deploymentRepo,
+		deploymentRequestPublisher,
 		dto.Log,
 	)
 
@@ -83,8 +105,7 @@ func main() {
 		dto.Log.Fatal("Server failed", zap.Error(err))
 	}
 
+	defer server.Shutdown()
+
 	utils.WaitForShutdown()
-	if err := server.Shutdown(); err != nil {
-		dto.Log.Fatal("Server failed to shutdown", zap.Error(err))
-	}
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type Server struct {
@@ -45,13 +46,14 @@ func (s *Server) Run() error {
 	return <-errChan
 }
 
-func (s *Server) Shutdown() error {
+func (s *Server) Shutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), s.shutdownTimeout)
 	defer cancel()
 
 	if err := s.srv.Shutdown(ctx); err != nil {
-		return fmt.Errorf("failed to shutdown server: %w", err)
+		dto.Log.Error("Failed to shutdown server", zap.Error(err))
+		return
 	}
 
-	return nil
+	dto.Log.Info("Server shutdown successfully")
 }

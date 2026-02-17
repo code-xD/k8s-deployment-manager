@@ -17,6 +17,7 @@ import (
 type DeploymentRequestService struct {
 	repo           portsrepo.DeploymentRequest
 	deploymentRepo portsrepo.Deployment
+	publisher      portsrepo.DeploymentRequestPublisher
 	logger         *zap.Logger
 }
 
@@ -24,11 +25,13 @@ type DeploymentRequestService struct {
 func NewDeploymentRequestService(
 	repo portsrepo.DeploymentRequest,
 	deploymentRepo portsrepo.Deployment,
+	publisher portsrepo.DeploymentRequestPublisher,
 	logger *zap.Logger,
 ) portsservice.DeploymentRequest {
 	return &DeploymentRequestService{
 		repo:           repo,
 		deploymentRepo: deploymentRepo,
+		publisher:      publisher,
 		logger:         logger,
 	}
 }
@@ -95,10 +98,17 @@ func (s *DeploymentRequestService) CreateDeploymentRequest(
 		return nil, fmt.Errorf("failed to create deployment request in database: %w", err)
 	}
 
-	// Emit log as placeholder for NATS event
-	s.logger.Info("Deployment request created successfully - NATS event placeholder",
+	// Publish to NATS for worker processing
+	if err := s.publisher.Publish(requestID, userID); err != nil {
+		s.logger.Error("Failed to publish deployment request to NATS",
+			zap.String("request_id", requestID),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("failed to publish deployment request: %w", err)
+	}
+
+	s.logger.Info("Deployment request created and published",
 		zap.String("request_id", requestID),
-		zap.String("deployment_id", deploymentRequest.ID.String()),
 		zap.String("identifier", identifier),
 		zap.String("name", req.Name),
 		zap.String("namespace", req.Namespace),

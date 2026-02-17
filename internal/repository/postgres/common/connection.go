@@ -52,13 +52,13 @@ func NewDB(cfg *dto.DatabaseConfig, log *zap.Logger) (*DB, error) {
 // Migrate runs database migrations
 func (db *DB) Migrate() error {
 	db.logger.Info("Running database migrations...")
-	
+
 	err := db.AutoMigrate(
 		&models.User{},
 		&models.DeploymentRequest{},
 		&models.Deployment{},
 	)
-	
+
 	if err != nil {
 		return fmt.Errorf("migration failed: %w", err)
 	}
@@ -68,10 +68,18 @@ func (db *DB) Migrate() error {
 }
 
 // Close closes the database connection
-func (db *DB) Close() error {
+func (db *DB) Close() {
 	sqlDB, err := db.DB.DB()
 	if err != nil {
-		return err
+		db.logger.Error("Failed to get SQL database", zap.Error(err))
+		return
 	}
-	return sqlDB.Close()
+
+	err = sqlDB.Close()
+	if err != nil {
+		db.logger.Error("Failed to close SQL database", zap.Error(err))
+		return
+	}
+
+	db.logger.Info("Database connection closed successfully")
 }
