@@ -27,9 +27,11 @@ import (
 // @BasePath  /api/v1
 
 func main() {
-	log := logger.New()
-	defer log.Sync()
+	// Initialize global logger
+	dto.Log = logger.New()
+	defer dto.Log.Sync()
 
+	// Initialize global config
 	cfg := config.NewConfigLoader[dto.APIConfig](
 		constants.DEFAULT_CONFIG_PATH,
 		constants.DEFAULT_CONFIG_FILE,
@@ -37,18 +39,19 @@ func main() {
 
 	apiCfg, err := cfg.Load()
 	if err != nil {
-		log.Fatal("Failed to load config", zap.Error(err))
+		dto.Log.Fatal("Failed to load config", zap.Error(err))
 	}
+	dto.APICfg = apiCfg
 
-	router := api.SetupRouter(log)
-	server := api.NewServer(*apiCfg, router)
+	router := api.SetupRouter(dto.Log)
+	server := api.NewServer(*dto.APICfg, router)
 
 	if err := server.Run(); err != nil {
-		log.Fatal("Server failed", zap.Error(err))
+		dto.Log.Fatal("Server failed", zap.Error(err))
 	}
 
 	utils.WaitForShutdown()
 	if err := server.Shutdown(); err != nil {
-		log.Fatal("Server failed to shutdown", zap.Error(err))
+		dto.Log.Fatal("Server failed to shutdown", zap.Error(err))
 	}
 }
