@@ -14,17 +14,24 @@ import (
 
 // DeploymentRequestHandler handles deployment request-related requests
 type DeploymentRequestHandler struct {
-	service  portsservice.DeploymentRequest
-	userRepo portsrepo.User
-	log      *zap.Logger
+	service               portsservice.DeploymentRequest
+	userRepo              portsrepo.User
+	deploymentRequestRepo portsrepo.DeploymentRequest
+	log                   *zap.Logger
 }
 
 // NewDeploymentRequestHandler creates a new DeploymentRequestHandler instance with injected dependencies
-func NewDeploymentRequestHandler(service portsservice.DeploymentRequest, userRepo portsrepo.User, log *zap.Logger) *DeploymentRequestHandler {
+func NewDeploymentRequestHandler(
+	service portsservice.DeploymentRequest,
+	userRepo portsrepo.User,
+	deploymentRequestRepo portsrepo.DeploymentRequest,
+	log *zap.Logger,
+) *DeploymentRequestHandler {
 	return &DeploymentRequestHandler{
-		service:  service,
-		userRepo: userRepo,
-		log:      log,
+		service:               service,
+		userRepo:              userRepo,
+		deploymentRequestRepo: deploymentRequestRepo,
+		log:                   log,
 	}
 }
 
@@ -37,11 +44,18 @@ func (h *DeploymentRequestHandler) GetRoutes() []dto.RouteDefinition {
 			// Middlewares are applied in order: RequestID -> Auth -> Validation -> Handler
 			// ValidateRequest wraps the handler and provides validated request body
 			Middlewares: []gin.HandlerFunc{
-				middleware.RequestIDMiddleware(),
-				middleware.AuthReadWriteMiddleware(h.userRepo, h.log),
+				middleware.RequestIDMiddleware(
+					h.deploymentRequestRepo,
+				),
+				middleware.AuthReadWriteMiddleware(
+					h.userRepo,
+					h.log,
+				),
 			},
 			// Handler wrapped with ValidateRequest to get validated body directly
-			Handler: middleware.ValidateRequest[dto.CreateDeploymentRequestWithMetadata](h.CreateDeploymentRequest),
+			Handler: middleware.ValidateRequest[dto.CreateDeploymentRequestWithMetadata](
+				h.CreateDeploymentRequest,
+			),
 		},
 	}
 }

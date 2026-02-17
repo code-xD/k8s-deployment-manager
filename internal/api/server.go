@@ -18,7 +18,7 @@ type Server struct {
 
 // NewServer creates a new Server with the given config and Gin router.
 // The router should already have ginzap middleware and routes registered.
-func NewServer(cfg dto.APIConfig, router *gin.Engine) *Server {
+func NewServer(cfg *dto.APIConfig, router *gin.Engine) *Server {
 	srv := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
 		Handler: router,

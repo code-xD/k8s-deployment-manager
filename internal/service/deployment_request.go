@@ -34,7 +34,12 @@ func NewDeploymentRequestService(
 }
 
 // CreateDeploymentRequest handles the business logic for creating a deployment request
-func (s *DeploymentRequestService) CreateDeploymentRequest(ctx context.Context, req *dto.CreateDeploymentRequestWithMetadata, requestID string, userID string) (*dto.DeploymentRequestResponse, error) {
+func (s *DeploymentRequestService) CreateDeploymentRequest(
+	ctx context.Context,
+	req *dto.CreateDeploymentRequestWithMetadata,
+	requestID string,
+	userID string,
+) (*dto.DeploymentRequestResponse, error) {
 	s.logger.Info("Creating deployment request",
 		zap.String("request_id", requestID),
 		zap.String("name", req.Name),
@@ -59,7 +64,11 @@ func (s *DeploymentRequestService) CreateDeploymentRequest(ctx context.Context, 
 	}
 	if found {
 		// Deployment exists, return conflict error
-		return nil, fmt.Errorf("deployment with name '%s' and namespace '%s' already exists", req.Name, req.Namespace)
+		return nil, fmt.Errorf(
+			"deployment with name '%s' and namespace '%s' already exists",
+			req.Name,
+			req.Namespace,
+		)
 	}
 
 	// Parse user ID

@@ -71,8 +71,13 @@ func main() {
 	)
 
 	// Setup router with injected service dependencies (as interface from pkg/ports/)
-	router := api.SetupRouter(dto.Log, deploymentRequestService, userRepo)
-	server := api.NewServer(*dto.APICfg, router)
+	router := api.SetupRouter(
+		dto.Log,
+		deploymentRequestService,
+		userRepo,
+		deploymentRequestRepo,
+	)
+	server := api.NewServer(dto.APICfg, router)
 
 	if err := server.Run(); err != nil {
 		dto.Log.Fatal("Server failed", zap.Error(err))
