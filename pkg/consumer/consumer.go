@@ -17,6 +17,7 @@ type NATSConsumer struct {
 	logger *zap.Logger
 
 	mu     sync.Mutex
+	wg     sync.WaitGroup
 	routes []*RouteConfig
 	subs   []*nats.Subscription
 }
@@ -110,6 +111,9 @@ func (c *NATSConsumer) subscribe(r *RouteConfig) (*nats.Subscription, error) {
 // retries, injects headers into context, and Ack/Nak the message.
 func (c *NATSConsumer) wrapHandler(r *RouteConfig) func(*nats.Msg) {
 	return func(msg *nats.Msg) {
+		c.wg.Add(1)
+		defer c.wg.Done()
+
 		ctx := contextWithHeaders(context.Background(), msg.Header)
 		ctx, cancel := context.WithTimeout(ctx, r.TaskTimeout)
 		defer cancel()
@@ -154,13 +158,25 @@ func (c *NATSConsumer) wrapHandler(r *RouteConfig) func(*nats.Msg) {
 	}
 }
 
-// Shutdown gracefully stops the consumer: it drains all subscriptions (processing
-// in-flight messages), then drains the NATS connection. It returns when done or
-// when ctx is cancelled. If ctx is cancelled before drain completes, the
-// connection is closed immediately.
+// Shutdown gracefully stops the consumer: it drains all subscriptions (no new
+// messages), waits for in-flight handler tasks to complete (via WaitGroup), then
+// drains the NATS connection. If ctx is cancelled before the wait completes,
+// Shutdown proceeds to close the connection and returns ctx.Err().
 func (c *NATSConsumer) Shutdown(ctx context.Context) error {
 	if err := c.drainSubs(); err != nil {
 		c.logger.Warn("Error draining subscriptions", zap.Error(err))
+	}
+
+	// Wait for in-flight handlers to finish, or for ctx to be cancelled.
+	waitDone := make(chan struct{})
+	go func() {
+		c.wg.Wait()
+		close(waitDone)
+	}()
+	select {
+	case <-ctx.Done():
+		c.logger.Warn("Shutdown context cancelled while waiting for in-flight tasks", zap.Error(ctx.Err()))
+	case <-waitDone:
 	}
 
 	done := make(chan struct{})
