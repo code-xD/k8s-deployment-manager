@@ -7,7 +7,7 @@ swagger:
 .PHONY: gen-orm
 gen-orm:
 	@echo "Generating GORM query code..."
-	@go run internal/database/gen.go
+	@go run cmd/gen-orm/main.go
 	@echo "GORM query code generated in internal/database/query/"
 
 .PHONY: run

@@ -16,11 +16,11 @@ func main() {
 		FieldNullable: true,
 	})
 
-	// Generate the code from model structs (no database connection needed)
+	// Generate query code from existing model structs (no database connection needed)
 	g.ApplyBasic(
-		g.GenerateModel(&models.User{}),
-		g.GenerateModel(&models.DeploymentRequest{}),
-		g.GenerateModel(&models.Deployment{}),
+		models.User{},
+		models.DeploymentRequest{},
+		models.Deployment{},
 	)
 
 	// Execute the generator

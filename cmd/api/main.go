@@ -4,6 +4,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/code-xd/k8s-deployment-manager/internal/api"
+	"github.com/code-xd/k8s-deployment-manager/internal/repository/postgres"
+	"github.com/code-xd/k8s-deployment-manager/internal/repository/postgres/common"
+	"github.com/code-xd/k8s-deployment-manager/internal/service"
 	"github.com/code-xd/k8s-deployment-manager/pkg/config"
 	"github.com/code-xd/k8s-deployment-manager/pkg/constants"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
@@ -26,6 +29,8 @@ import (
 
 // @BasePath  /api/v1
 
+// main is the composition root - this is the ONLY place where concrete implementations
+// should be instantiated. All other layers interact via interfaces from pkg/ports/
 func main() {
 	// Initialize global logger
 	dto.Log = logger.New()
@@ -43,7 +48,30 @@ func main() {
 	}
 	dto.APICfg = apiCfg
 
-	router := api.SetupRouter(dto.Log)
+	// Initialize database connection (concrete implementation - OK in composition root)
+	db, err := common.NewDB(&apiCfg.Database, dto.Log)
+	if err != nil {
+		dto.Log.Fatal("Failed to connect to database", zap.Error(err))
+	}
+	defer db.Close()
+
+	// Initialize repositories (concrete implementations - OK in composition root)
+	// These implement interfaces from pkg/ports/ and are injected as interfaces
+	deploymentRequestRepo := postgres.NewDeploymentRequestRepository(db)
+	deploymentRepo := postgres.NewDeploymentRepository(db)
+	userRepo := postgres.NewUserRepository(db)
+
+	// Initialize services (concrete implementations - OK in composition root)
+	// Service receives repository as interface (ports/repo.DeploymentRequest)
+	// Service returns interface (ports/service.DeploymentRequest)
+	deploymentRequestService := service.NewDeploymentRequestService(
+		deploymentRequestRepo,
+		deploymentRepo,
+		dto.Log,
+	)
+
+	// Setup router with injected service dependencies (as interface from pkg/ports/)
+	router := api.SetupRouter(dto.Log, deploymentRequestService, userRepo)
 	server := api.NewServer(*dto.APICfg, router)
 
 	if err := server.Run(); err != nil {

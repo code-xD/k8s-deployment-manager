@@ -1,0 +1,119 @@
+package service
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
+	"github.com/code-xd/k8s-deployment-manager/pkg/dto/models"
+	portsrepo "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo"
+	portsservice "github.com/code-xd/k8s-deployment-manager/pkg/ports/service"
+	"github.com/code-xd/k8s-deployment-manager/pkg/utils"
+	"github.com/google/uuid"
+	"go.uber.org/zap"
+)
+
+// DeploymentRequestService implements the deployment request business logic
+type DeploymentRequestService struct {
+	repo            portsrepo.DeploymentRequest
+	deploymentRepo  portsrepo.Deployment
+	logger          *zap.Logger
+}
+
+// NewDeploymentRequestService creates a new DeploymentRequestService with injected dependencies
+func NewDeploymentRequestService(
+	repo portsrepo.DeploymentRequest,
+	deploymentRepo portsrepo.Deployment,
+	logger *zap.Logger,
+) portsservice.DeploymentRequest {
+	return &DeploymentRequestService{
+		repo:           repo,
+		deploymentRepo: deploymentRepo,
+		logger:         logger,
+	}
+}
+
+// CreateDeploymentRequest handles the business logic for creating a deployment request
+func (s *DeploymentRequestService) CreateDeploymentRequest(ctx context.Context, req *dto.CreateDeploymentRequestWithMetadata, requestID string, userID string) (*dto.DeploymentRequestResponse, error) {
+	s.logger.Info("Creating deployment request",
+		zap.String("request_id", requestID),
+		zap.String("name", req.Name),
+		zap.String("namespace", req.Namespace),
+		zap.String("user_id", userID),
+	)
+
+	// Step 1: Check if deployment_request exists with same request_id
+	_, found, err := s.repo.GetByRequestID(ctx, requestID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing deployment request: %w", err)
+	}
+	if found {
+		// Deployment request with same request_id already exists, return conflict error
+		return nil, fmt.Errorf("deployment request with request_id '%s' already exists", requestID)
+	}
+
+	// Step 2: Check if deployment exists with same name and namespace (status != DELETED)
+	_, found, err = s.deploymentRepo.GetByNameAndNamespace(ctx, req.Name, req.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing deployment: %w", err)
+	}
+	if found {
+		// Deployment exists, return conflict error
+		return nil, fmt.Errorf("deployment with name '%s' and namespace '%s' already exists", req.Name, req.Namespace)
+	}
+
+	// Parse user ID
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Generate identifier (collision chance is very low)
+	identifier, err := utils.GenerateDeploymentIdentifier(req.Name, req.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate identifier: %w", err)
+	}
+
+	// Convert DTO to model
+	deploymentRequest := &models.DeploymentRequest{
+		RequestID:   requestID,
+		Identifier:  identifier,
+		Name:        req.Name,
+		Namespace:   req.Namespace,
+		RequestType: models.DeploymentRequestTypeCreate,
+		Status:      models.DeploymentRequestStatusCreated,
+		Image:       req.Image,
+		UserID:      userUUID,
+		Metadata: map[string]interface{}{
+			"replica_count":  req.Metadata.ReplicaCount,
+			"resource_limit": req.Metadata.ResourceLimit,
+			"doc_html":       req.Metadata.DocHTML,
+		},
+	}
+
+	// Save to database via repository
+	if err := s.repo.Create(ctx, deploymentRequest); err != nil {
+		return nil, fmt.Errorf("failed to create deployment request in database: %w", err)
+	}
+
+	// Emit log as placeholder for NATS event
+	s.logger.Info("Deployment request created successfully - NATS event placeholder",
+		zap.String("request_id", requestID),
+		zap.String("deployment_id", deploymentRequest.ID.String()),
+		zap.String("identifier", identifier),
+		zap.String("name", req.Name),
+		zap.String("namespace", req.Namespace),
+	)
+
+	return &dto.DeploymentRequestResponse{
+		ID:          deploymentRequest.ID,
+		RequestID:   deploymentRequest.RequestID,
+		Identifier:  deploymentRequest.Identifier,
+		Name:        deploymentRequest.Name,
+		Namespace:   deploymentRequest.Namespace,
+		Image:       deploymentRequest.Image,
+		Status:      string(deploymentRequest.Status),
+		RequestType: string(deploymentRequest.RequestType),
+		Metadata:    deploymentRequest.Metadata,
+	}, nil
+}

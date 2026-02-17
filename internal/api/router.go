@@ -6,6 +6,8 @@ import (
 	"github.com/code-xd/k8s-deployment-manager/internal/api/handlers"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
 	"github.com/code-xd/k8s-deployment-manager/pkg/ports"
+	portsrepo "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo"
+	portsservice "github.com/code-xd/k8s-deployment-manager/pkg/ports/service"
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -14,7 +16,8 @@ import (
 )
 
 // SetupRouter creates and configures a new Gin router with Zap logging middleware and routes.
-func SetupRouter(log *zap.Logger) *gin.Engine {
+// It accepts dependencies (services) that are injected into handlers.
+func SetupRouter(log *zap.Logger, deploymentRequestService portsservice.DeploymentRequest, userRepo portsrepo.User) *gin.Engine {
 	router := gin.New()
 
 	// Zap request logging (replaces gin.Logger())
@@ -25,33 +28,51 @@ func SetupRouter(log *zap.Logger) *gin.Engine {
 	// Swagger documentation
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// Initialize handlers and auto-populate routes
-	initHandlers(router)
+	// Initialize handlers with injected dependencies and auto-populate routes
+	initHandlers(router, deploymentRequestService, userRepo, log)
 
 	return router
 }
 
 // initHandlers initializes all handler instances and registers their routes
-func initHandlers(router *gin.Engine) {
-	// Get all handlers that implement the Handler interface
-	allHandlers := getHandlers()
+func initHandlers(router *gin.Engine, deploymentRequestService portsservice.DeploymentRequest, userRepo portsrepo.User, log *zap.Logger) {
+	// Get all handlers that implement the Handler interface with injected dependencies
+	allHandlers := getHandlers(deploymentRequestService, userRepo, log)
 
 	// Collect all route definitions from handlers
 	allRoutes := []dto.RouteDefinition{}
 	for _, handler := range allHandlers {
-		allRoutes = append(allRoutes, handler.GetRoutes()...)
+		routes := handler.GetRoutes()
+		allRoutes = append(allRoutes, routes...)
 	}
 
 	// Register routes on the router
 	for _, routeDef := range allRoutes {
-		registerRouteOnRouter(router, routeDef.Method, routeDef.Path, routeDef.Handler)
+		// Build handler chain: middlewares -> handler
+		var handler gin.HandlerFunc = routeDef.Handler
+		
+		// Apply middlewares in reverse order (last middleware wraps handler)
+		// So middlewares are applied: mw1 -> mw2 -> ... -> handler
+		for i := len(routeDef.Middlewares) - 1; i >= 0; i-- {
+			mw := routeDef.Middlewares[i]
+			currentHandler := handler
+			handler = func(c *gin.Context) {
+				mw(c)
+				if !c.IsAborted() && currentHandler != nil {
+					currentHandler(c)
+				}
+			}
+		}
+		
+		registerRouteOnRouter(router, routeDef.Method, routeDef.Path, handler)
 	}
 }
 
 // getHandlers returns all handler instances that implement the Handler interface
-func getHandlers() []ports.Handler {
+// Dependencies are injected via constructor functions
+func getHandlers(deploymentRequestService portsservice.DeploymentRequest, userRepo portsrepo.User, log *zap.Logger) []ports.Handler {
 	return []ports.Handler{
-		handlers.NewDeploymentHandler(),
+		handlers.NewDeploymentRequestHandler(deploymentRequestService, userRepo, log),
 		handlers.NewHealthHandler(),
 	}
 }

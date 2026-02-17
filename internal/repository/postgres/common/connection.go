@@ -1,4 +1,4 @@
-package database
+package common
 
 import (
 	"fmt"
@@ -12,6 +12,7 @@ import (
 )
 
 // DB holds the database connection
+// This is shared infrastructure used by all postgres repositories
 type DB struct {
 	*gorm.DB
 	logger *zap.Logger
