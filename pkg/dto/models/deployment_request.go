@@ -33,7 +33,7 @@ type DeploymentRequest struct {
 	UserID      uuid.UUID               `gorm:"type:uuid;not null;index:idx_deployment_request_user_status" json:"user_id"`
 	Status      DeploymentRequestStatus `gorm:"type:varchar(50);not null;index:idx_deployment_request_user_status" json:"status"`
 	Image       string                  `gorm:"type:varchar(255);not null" json:"image"`
-	Metadata    map[string]interface{}  `gorm:"type:jsonb" json:"metadata"`
+	Metadata    JSONB                   `gorm:"type:jsonb" json:"metadata"`
 
 	// Foreign key relationship
 	User User `gorm:"foreignKey:UserID;references:ID" json:"user,omitempty"`

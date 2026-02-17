@@ -15,9 +15,9 @@ import (
 
 // DeploymentRequestService implements the deployment request business logic
 type DeploymentRequestService struct {
-	repo            portsrepo.DeploymentRequest
-	deploymentRepo  portsrepo.Deployment
-	logger          *zap.Logger
+	repo           portsrepo.DeploymentRequest
+	deploymentRepo portsrepo.Deployment
+	logger         *zap.Logger
 }
 
 // NewDeploymentRequestService creates a new DeploymentRequestService with injected dependencies
@@ -47,18 +47,8 @@ func (s *DeploymentRequestService) CreateDeploymentRequest(
 		zap.String("user_id", userID),
 	)
 
-	// Step 1: Check if deployment_request exists with same request_id
-	_, found, err := s.repo.GetByRequestID(ctx, requestID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check existing deployment request: %w", err)
-	}
-	if found {
-		// Deployment request with same request_id already exists, return conflict error
-		return nil, fmt.Errorf("deployment request with request_id '%s' already exists", requestID)
-	}
-
-	// Step 2: Check if deployment exists with same name and namespace (status != DELETED)
-	_, found, err = s.deploymentRepo.GetByNameAndNamespace(ctx, req.Name, req.Namespace)
+	// Step 1: Check if deployment exists with same name and namespace (status != DELETED)
+	_, found, err := s.deploymentRepo.GetByNameAndNamespace(ctx, req.Name, req.Namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check existing deployment: %w", err)
 	}
@@ -93,7 +83,7 @@ func (s *DeploymentRequestService) CreateDeploymentRequest(
 		Status:      models.DeploymentRequestStatusCreated,
 		Image:       req.Image,
 		UserID:      userUUID,
-		Metadata: map[string]interface{}{
+		Metadata: models.JSONB{
 			"replica_count":  req.Metadata.ReplicaCount,
 			"resource_limit": req.Metadata.ResourceLimit,
 			"doc_html":       req.Metadata.DocHTML,
@@ -123,6 +113,6 @@ func (s *DeploymentRequestService) CreateDeploymentRequest(
 		Image:       deploymentRequest.Image,
 		Status:      string(deploymentRequest.Status),
 		RequestType: string(deploymentRequest.RequestType),
-		Metadata:    deploymentRequest.Metadata,
+		Metadata:    map[string]interface{}(deploymentRequest.Metadata),
 	}, nil
 }
