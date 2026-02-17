@@ -6,7 +6,8 @@ import "time"
 type contextKey string
 
 const (
-	headerContextKey   contextKey = "nats.headers"
-	defaultTaskTimeout            = time.Minute
-	defaultRetryCount             = 1
+	headerContextKey       contextKey = "nats.headers"
+	lastAttemptContextKey  contextKey = "consumer.last_attempt"
+	defaultTaskTimeout                = time.Minute
+	defaultRetryCount                 = 1
 )

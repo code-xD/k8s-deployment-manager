@@ -32,6 +32,14 @@ type RouteConfig struct {
 	RetryCount    int
 }
 
+// LastAttemptFromContext returns true if the handler is running on the last
+// allowed attempt (no more retries after this). Set by the consumer when attempt == RetryCount.
+func LastAttemptFromContext(ctx context.Context) bool {
+	v := ctx.Value(lastAttemptContextKey)
+	b, _ := v.(bool)
+	return b
+}
+
 // HeadersFromContext returns the NATS message headers stored in the context,
 // or nil if not set.
 func HeadersFromContext(ctx context.Context) nats.Header {

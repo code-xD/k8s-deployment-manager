@@ -119,8 +119,9 @@ func (c *NATSConsumer) wrapHandler(r *RouteConfig) func(*nats.Msg) {
 		for attempt := 0; attempt <= r.RetryCount; attempt++ {
 			// If this is the last allowed attempt, flag the context that it is the last attempt.
 			if attempt == r.RetryCount {
-				ctx = context.WithValue(ctx, "consumer.last_attempt", true)
+				ctx = context.WithValue(ctx, lastAttemptContextKey, true)
 			}
+
 			lastErr = r.Handler(ctx, m)
 			if lastErr == nil {
 				if err := msg.Ack(); err != nil {
