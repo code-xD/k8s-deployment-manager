@@ -39,8 +39,17 @@ type ProducerConfig struct {
 // WorkerConfig holds configuration for the worker consumer
 type WorkerConfig struct {
 	Database DatabaseConfig `mapstructure:"database"`
+	K8s      K8sConfig      `mapstructure:"k8s"`
 	Nats     NatsConfig     `mapstructure:"nats"`
 	Consumer ConsumerConfig `mapstructure:"consumer"`
+}
+
+// K8sConfig holds Kubernetes client configuration
+type K8sConfig struct {
+	// InCluster when true uses in-cluster config (service account). When false uses kubeconfig.
+	InCluster bool `mapstructure:"in_cluster"`
+	// Kubeconfig path when InCluster is false. Empty uses default (KUBECONFIG env or ~/.kube/config).
+	Kubeconfig string `mapstructure:"kubeconfig"`
 }
 
 // ConsumerConfig holds worker consumer settings

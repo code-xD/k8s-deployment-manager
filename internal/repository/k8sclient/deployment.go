@@ -10,10 +10,12 @@ import (
 	"github.com/code-xd/k8s-deployment-manager/pkg/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // Deployment handles Kubernetes deployment operations.
@@ -24,13 +26,14 @@ type Deployment struct {
 
 // NewDeployment creates a new Deployment repository.
 // templatesBasePath is the directory containing the templates folder (e.g. project root or ".").
-func NewDeployment(templatesBasePath string) (*Deployment, error) {
-	config, err := rest.InClusterConfig()
+// cfg controls whether to use in-cluster config or kubeconfig. If nil, in-cluster is used.
+func NewDeployment(templatesBasePath string, cfg *dto.K8sConfig) (*Deployment, error) {
+	restConfig, err := buildRestConfig(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("in-cluster config: %w", err)
+		return nil, err
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return nil, fmt.Errorf("kubernetes client: %w", err)
 	}
@@ -44,6 +47,20 @@ func NewDeployment(templatesBasePath string) (*Deployment, error) {
 		templatesBasePath: basePath,
 		clientset:         clientset,
 	}, nil
+}
+
+func buildRestConfig(cfg *dto.K8sConfig) (*rest.Config, error) {
+	if cfg == nil || cfg.InCluster {
+		return rest.InClusterConfig()
+	}
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	if cfg.Kubeconfig != "" {
+		loadingRules.ExplicitPath = cfg.Kubeconfig
+	}
+	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		loadingRules,
+		&clientcmd.ConfigOverrides{},
+	).ClientConfig()
 }
 
 // Create fetches the template for the image, replaces placeholders with DeploymentRequest
@@ -88,12 +105,29 @@ func (d *Deployment) Create(ctx context.Context, req *models.DeploymentRequest) 
 		return nil, fmt.Errorf("parse and validate: %w", err)
 	}
 
+	if err := d.getOrCreateNamespace(ctx, req.Namespace); err != nil {
+		return nil, fmt.Errorf("failed to get or create namespace: %w", err)
+	}
+
 	created, err := d.clientset.AppsV1().Deployments(req.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("create deployment in cluster: %w", err)
 	}
 
 	return created, nil
+}
+
+func (d *Deployment) getOrCreateNamespace(ctx context.Context, namespace string) error {
+	_, err := d.clientset.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	if err == nil || !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	_, err = d.clientset.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: namespace},
+	}, metav1.CreateOptions{})
+
+	return err
 }
 
 // parseAndValidate decodes the YAML manifest into an appsv1.Deployment and validates it.
