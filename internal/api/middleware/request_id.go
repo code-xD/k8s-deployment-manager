@@ -4,14 +4,14 @@ import (
 	"net/http"
 
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
-	portsrepo "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo"
+	portsdb "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/db"
 	"github.com/gin-gonic/gin"
 )
 
 // RequestIDMiddleware extracts X-Request-ID from headers and stores it in context
 // This middleware is used for idempotency - ensures the same request ID can be used multiple times
 func RequestIDMiddleware(
-	deploymentRequestRepo portsrepo.DeploymentRequest,
+	deploymentRequestRepo portsdb.DeploymentRequest,
 ) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestID := c.GetHeader(dto.RequestIDHeader)

@@ -6,7 +6,7 @@ import (
 	"github.com/code-xd/k8s-deployment-manager/internal/api/handlers"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
 	"github.com/code-xd/k8s-deployment-manager/pkg/ports"
-	portsrepo "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo"
+	portsdb "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/db"
 	portsservice "github.com/code-xd/k8s-deployment-manager/pkg/ports/service"
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
@@ -20,8 +20,8 @@ import (
 func SetupRouter(
 	log *zap.Logger,
 	deploymentRequestService portsservice.DeploymentRequest,
-	userRepo portsrepo.User,
-	deploymentRequestRepo portsrepo.DeploymentRequest,
+	userRepo portsdb.User,
+	deploymentRequestRepo portsdb.DeploymentRequest,
 ) *gin.Engine {
 	router := gin.New()
 
@@ -49,8 +49,8 @@ func SetupRouter(
 func initHandlers(
 	router *gin.Engine,
 	deploymentRequestService portsservice.DeploymentRequest,
-	userRepo portsrepo.User,
-	deploymentRequestRepo portsrepo.DeploymentRequest,
+	userRepo portsdb.User,
+	deploymentRequestRepo portsdb.DeploymentRequest,
 	log *zap.Logger,
 ) {
 	// Get all handlers that implement the Handler interface with injected dependencies
@@ -94,8 +94,8 @@ func initHandlers(
 // Dependencies are injected via constructor functions
 func getHandlers(
 	deploymentRequestService portsservice.DeploymentRequest,
-	userRepo portsrepo.User,
-	deploymentRequestRepo portsrepo.DeploymentRequest,
+	userRepo portsdb.User,
+	deploymentRequestRepo portsdb.DeploymentRequest,
 	log *zap.Logger,
 ) []ports.Handler {
 	return []ports.Handler{

@@ -6,7 +6,8 @@ import (
 
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto/models"
-	portsrepo "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo"
+	portsdb "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/db"
+	portsqueue "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/queue"
 	portsservice "github.com/code-xd/k8s-deployment-manager/pkg/ports/service"
 	"github.com/code-xd/k8s-deployment-manager/pkg/utils"
 	"github.com/google/uuid"
@@ -15,17 +16,17 @@ import (
 
 // DeploymentRequestService implements the deployment request business logic
 type DeploymentRequestService struct {
-	repo           portsrepo.DeploymentRequest
-	deploymentRepo portsrepo.Deployment
-	publisher      portsrepo.DeploymentRequestPublisher
+	repo           portsdb.DeploymentRequest
+	deploymentRepo portsdb.Deployment
+	publisher      portsqueue.DeploymentRequest
 	logger         *zap.Logger
 }
 
 // NewDeploymentRequestService creates a new DeploymentRequestService with injected dependencies
 func NewDeploymentRequestService(
-	repo portsrepo.DeploymentRequest,
-	deploymentRepo portsrepo.Deployment,
-	publisher portsrepo.DeploymentRequestPublisher,
+	repo portsdb.DeploymentRequest,
+	deploymentRepo portsdb.Deployment,
+	publisher portsqueue.DeploymentRequest,
 	logger *zap.Logger,
 ) portsservice.DeploymentRequest {
 	return &DeploymentRequestService{

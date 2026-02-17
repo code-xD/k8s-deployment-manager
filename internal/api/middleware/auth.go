@@ -6,7 +6,7 @@ import (
 
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto/models"
-	portsrepo "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo"
+	portsdb "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/db"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -15,7 +15,7 @@ import (
 // AuthReadMiddleware validates that the user exists in the database
 // Returns 401 if header is missing/invalid, 403 if user not found
 func AuthReadMiddleware(
-	userRepo portsrepo.User,
+	userRepo portsdb.User,
 	logger *zap.Logger,
 ) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -51,7 +51,7 @@ func AuthReadMiddleware(
 // AuthReadWriteMiddleware validates user and creates if not exists
 // Returns 401 if header is missing/invalid, creates user if not found
 func AuthReadWriteMiddleware(
-	userRepo portsrepo.User,
+	userRepo portsdb.User,
 	logger *zap.Logger,
 ) gin.HandlerFunc {
 	return func(c *gin.Context) {

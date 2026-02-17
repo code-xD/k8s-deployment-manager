@@ -7,7 +7,7 @@ import (
 	"github.com/code-xd/k8s-deployment-manager/internal/database/query"
 	"github.com/code-xd/k8s-deployment-manager/internal/repository/postgres/common"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto/models"
-	portsrepo "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo"
+	portsdb "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/db"
 )
 
 // UserRepository implements the user repository interface
@@ -16,7 +16,7 @@ type UserRepository struct {
 }
 
 // NewUserRepository creates a new user repository
-func NewUserRepository(db *common.DB) portsrepo.User {
+func NewUserRepository(db *common.DB) portsdb.User {
 	return &UserRepository{
 		db: db,
 	}

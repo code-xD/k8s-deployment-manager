@@ -7,7 +7,7 @@ import (
 	"github.com/code-xd/k8s-deployment-manager/internal/database/query"
 	"github.com/code-xd/k8s-deployment-manager/internal/repository/postgres/common"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto/models"
-	portsrepo "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo"
+	portsdb "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/db"
 )
 
 // DeploymentRequestRepository implements the deployment request repository interface
@@ -16,7 +16,7 @@ type DeploymentRequestRepository struct {
 }
 
 // NewDeploymentRequestRepository creates a new deployment request repository
-func NewDeploymentRequestRepository(db *common.DB) portsrepo.DeploymentRequest {
+func NewDeploymentRequestRepository(db *common.DB) portsdb.DeploymentRequest {
 	return &DeploymentRequestRepository{
 		db: db,
 	}

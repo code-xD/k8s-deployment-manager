@@ -7,7 +7,7 @@ import (
 	"github.com/code-xd/k8s-deployment-manager/internal/database/query"
 	"github.com/code-xd/k8s-deployment-manager/internal/repository/postgres/common"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto/models"
-	portsrepo "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo"
+	portsdb "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/db"
 )
 
 // DeploymentRepository implements the deployment repository interface
@@ -16,7 +16,7 @@ type DeploymentRepository struct {
 }
 
 // NewDeploymentRepository creates a new deployment repository
-func NewDeploymentRepository(db *common.DB) portsrepo.Deployment {
+func NewDeploymentRepository(db *common.DB) portsdb.Deployment {
 	return &DeploymentRepository{
 		db: db,
 	}

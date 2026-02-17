@@ -81,8 +81,7 @@ func main() {
 	userRepo := postgres.NewUserRepository(db)
 
 	// Initialize services (concrete implementations - OK in composition root)
-	// Service receives repository as interface (ports/repo.DeploymentRequest)
-	// Service returns interface (ports/service.DeploymentRequest)
+	// Service receives repo interfaces (ports/repo/db, ports/repo/queue) and returns ports/service.DeploymentRequest
 	deploymentRequestService := service.NewDeploymentRequestService(
 		deploymentRequestRepo,
 		deploymentRepo,

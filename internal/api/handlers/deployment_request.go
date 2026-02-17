@@ -6,7 +6,7 @@ import (
 
 	"github.com/code-xd/k8s-deployment-manager/internal/api/middleware"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
-	portsrepo "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo"
+	portsdb "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/db"
 	portsservice "github.com/code-xd/k8s-deployment-manager/pkg/ports/service"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -15,16 +15,16 @@ import (
 // DeploymentRequestHandler handles deployment request-related requests
 type DeploymentRequestHandler struct {
 	service               portsservice.DeploymentRequest
-	userRepo              portsrepo.User
-	deploymentRequestRepo portsrepo.DeploymentRequest
+	userRepo              portsdb.User
+	deploymentRequestRepo portsdb.DeploymentRequest
 	log                   *zap.Logger
 }
 
 // NewDeploymentRequestHandler creates a new DeploymentRequestHandler instance with injected dependencies
 func NewDeploymentRequestHandler(
 	service portsservice.DeploymentRequest,
-	userRepo portsrepo.User,
-	deploymentRequestRepo portsrepo.DeploymentRequest,
+	userRepo portsdb.User,
+	deploymentRequestRepo portsdb.DeploymentRequest,
 	log *zap.Logger,
 ) *DeploymentRequestHandler {
 	return &DeploymentRequestHandler{
