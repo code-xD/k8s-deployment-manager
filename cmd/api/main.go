@@ -64,17 +64,15 @@ func main() {
 	}
 	defer natsConn.Close()
 
-	// Ensure JetStream stream exists for deployment request/update subjects
-	subjects := []string{
-		apiCfg.Nats.Producer.DeploymentRequestChannel,
-		apiCfg.Nats.Producer.DeploymentUpdateChannel,
-	}
-	if err := natsConn.EnsureStream(natscommon.DefaultStreamName, subjects); err != nil {
+	// Ensure JetStream stream exists (stream name and subjects from config)
+	prod := &apiCfg.Nats.Producer
+	subjects := []string{prod.DeploymentRequestChannel, prod.DeploymentUpdateChannel}
+	if err := natsConn.EnsureStream(prod.StreamName, subjects); err != nil {
 		dto.Log.Fatal("Failed to ensure JetStream stream", zap.Error(err))
 	}
 
 	natsProducer := natscommon.NewProducer(natsConn)
-	deploymentRequestPublisher := nats.NewDeploymentRequestProducer(natsProducer, &apiCfg.Nats.Producer)
+	deploymentRequestPublisher := nats.NewDeploymentRequestProducer(natsProducer, prod)
 
 	// Initialize repositories (concrete implementations - OK in composition root)
 	// These implement interfaces from pkg/ports/ and are injected as interfaces

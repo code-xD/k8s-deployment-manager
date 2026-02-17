@@ -29,8 +29,9 @@ type NatsConfig struct {
 	Producer ProducerConfig `mapstructure:"producer"`
 }
 
-// ProducerConfig holds NATS producer channel names
+// ProducerConfig holds NATS producer stream and channel names
 type ProducerConfig struct {
+	StreamName               string `mapstructure:"stream_name"`
 	DeploymentRequestChannel string `mapstructure:"deployment_request_channel"`
 	DeploymentUpdateChannel  string `mapstructure:"deployment_update_channel"`
 }

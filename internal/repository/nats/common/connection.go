@@ -10,9 +10,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// DefaultStreamName is the JetStream stream used for deployment request/update subjects
-const DefaultStreamName = "DEPLOYMENTS"
-
 // NATS holds the NATS connection
 // This is shared infrastructure used by all NATS repositories
 type NATS struct {
@@ -46,7 +43,7 @@ func NewNATS(cfg *dto.NatsConfig, log *zap.Logger) (*NATS, error) {
 }
 
 // EnsureStream creates a JetStream stream with the given name and subjects if it does not exist.
-// Idempotent: if the stream already exists (including name in use), no error is returned.
+// Idempotent: if the stream already exists (name in use), no error is returned.
 func (n *NATS) EnsureStream(streamName string, subjects []string) error {
 	if streamName == "" || len(subjects) == 0 {
 		return fmt.Errorf("stream name and at least one subject are required")
