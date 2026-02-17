@@ -4,6 +4,12 @@ swagger:
 	@swag init -g cmd/api/main.go -o swagger --parseDependency --parseInternal
 	@echo "Swagger docs generated in swagger/"
 
+.PHONY: gen-orm
+gen-orm:
+	@echo "Generating GORM query code..."
+	@go run internal/database/gen.go
+	@echo "GORM query code generated in internal/database/query/"
+
 .PHONY: run
 run:
 	@go run cmd/api/main.go

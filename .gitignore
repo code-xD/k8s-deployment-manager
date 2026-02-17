@@ -40,3 +40,6 @@ config/config.*.yaml
 
 # Swagger generated docs
 swagger/
+
+# GORM generated query code
+internal/database/query/

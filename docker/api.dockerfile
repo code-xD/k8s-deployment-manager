@@ -14,6 +14,9 @@ COPY . .
 RUN go install github.com/swaggo/swag/cmd/swag@latest
 RUN swag init -g cmd/api/main.go -o swagger --parseDependency --parseInternal
 
+# Generate GORM query code
+RUN go run internal/database/gen.go
+
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o api ./cmd/api/main.go
 

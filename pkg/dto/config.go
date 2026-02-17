@@ -13,13 +13,16 @@ type serverConfig struct {
 	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
 }
 
-type databaseConfig struct {
+type DatabaseConfig struct {
 	Host     string `mapstructure:"host"`
 	Port     string `mapstructure:"port"`
 	User     string `mapstructure:"user"`
 	Password string `mapstructure:"password"`
 	DBName   string `mapstructure:"db_name"`
 }
+
+// databaseConfig is an alias for backward compatibility
+type databaseConfig = DatabaseConfig
 
 type natsConfig struct {
 	URL string `mapstructure:"url"`
