@@ -1,4 +1,4 @@
-package service
+package apiService
 
 import (
 	"context"
@@ -8,13 +8,13 @@ import (
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto/models"
 	portsdb "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/db"
 	portsqueue "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/queue"
-	portsservice "github.com/code-xd/k8s-deployment-manager/pkg/ports/service"
+	portsapi "github.com/code-xd/k8s-deployment-manager/pkg/ports/service/apiService"
 	"github.com/code-xd/k8s-deployment-manager/pkg/utils"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
-// DeploymentRequestService implements the deployment request business logic
+// DeploymentRequestService implements the deployment request business logic for the API
 type DeploymentRequestService struct {
 	repo           portsdb.DeploymentRequest
 	deploymentRepo portsdb.Deployment
@@ -28,7 +28,7 @@ func NewDeploymentRequestService(
 	deploymentRepo portsdb.Deployment,
 	publisher portsqueue.DeploymentRequest,
 	logger *zap.Logger,
-) portsservice.DeploymentRequest {
+) portsapi.DeploymentRequest {
 	return &DeploymentRequestService{
 		repo:           repo,
 		deploymentRepo: deploymentRepo,

@@ -8,7 +8,7 @@ import (
 	natscommon "github.com/code-xd/k8s-deployment-manager/internal/repository/nats/common"
 	"github.com/code-xd/k8s-deployment-manager/internal/repository/postgres"
 	"github.com/code-xd/k8s-deployment-manager/internal/repository/postgres/common"
-	"github.com/code-xd/k8s-deployment-manager/internal/service"
+	"github.com/code-xd/k8s-deployment-manager/internal/service/apiService"
 	"github.com/code-xd/k8s-deployment-manager/pkg/config"
 	"github.com/code-xd/k8s-deployment-manager/pkg/constants"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
@@ -81,18 +81,18 @@ func main() {
 	userRepo := postgres.NewUserRepository(db)
 
 	// Initialize services (concrete implementations - OK in composition root)
-	// Service receives repo interfaces (ports/repo/db, ports/repo/queue) and returns ports/service.DeploymentRequest
-	deploymentRequestService := service.NewDeploymentRequestService(
+	// Service receives repo interfaces (ports/repo/db, ports/repo/queue) and returns ports/service/apiService.DeploymentRequest
+	deploymentRequest := apiService.NewDeploymentRequestService(
 		deploymentRequestRepo,
 		deploymentRepo,
 		deploymentRequestPublisher,
 		dto.Log,
 	)
 
-	// Setup router with injected service dependencies (as interface from pkg/ports/)
+	// Setup router with injected service dependencies (as interface from pkg/ports/service/apiService)
 	router := api.SetupRouter(
 		dto.Log,
-		deploymentRequestService,
+		deploymentRequest,
 		userRepo,
 		deploymentRequestRepo,
 	)

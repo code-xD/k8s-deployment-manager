@@ -7,14 +7,14 @@ import (
 	"github.com/code-xd/k8s-deployment-manager/internal/api/middleware"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
 	portsdb "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/db"
-	portsservice "github.com/code-xd/k8s-deployment-manager/pkg/ports/service"
+	portsapi "github.com/code-xd/k8s-deployment-manager/pkg/ports/service/apiService"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
 // DeploymentRequestHandler handles deployment request-related requests
 type DeploymentRequestHandler struct {
-	service               portsservice.DeploymentRequest
+	deploymentRequest     portsapi.DeploymentRequest
 	userRepo              portsdb.User
 	deploymentRequestRepo portsdb.DeploymentRequest
 	log                   *zap.Logger
@@ -22,13 +22,13 @@ type DeploymentRequestHandler struct {
 
 // NewDeploymentRequestHandler creates a new DeploymentRequestHandler instance with injected dependencies
 func NewDeploymentRequestHandler(
-	service portsservice.DeploymentRequest,
+	deploymentRequest portsapi.DeploymentRequest,
 	userRepo portsdb.User,
 	deploymentRequestRepo portsdb.DeploymentRequest,
 	log *zap.Logger,
 ) *DeploymentRequestHandler {
 	return &DeploymentRequestHandler{
-		service:               service,
+		deploymentRequest:     deploymentRequest,
 		userRepo:              userRepo,
 		deploymentRequestRepo: deploymentRequestRepo,
 		log:                   log,
@@ -95,7 +95,7 @@ func (h *DeploymentRequestHandler) CreateDeploymentRequest(c *gin.Context, req *
 	}
 
 	// Call service to create deployment request
-	deploymentRequest, err := h.service.CreateDeploymentRequest(
+	deploymentRequest, err := h.deploymentRequest.CreateDeploymentRequest(
 		c.Request.Context(),
 		req,
 		requestID,

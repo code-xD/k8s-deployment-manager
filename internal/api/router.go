@@ -6,8 +6,8 @@ import (
 	"github.com/code-xd/k8s-deployment-manager/internal/api/handlers"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
 	"github.com/code-xd/k8s-deployment-manager/pkg/ports"
+	portsapi "github.com/code-xd/k8s-deployment-manager/pkg/ports/service/apiService"
 	portsdb "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/db"
-	portsservice "github.com/code-xd/k8s-deployment-manager/pkg/ports/service"
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -19,7 +19,7 @@ import (
 // It accepts dependencies (services) that are injected into handlers.
 func SetupRouter(
 	log *zap.Logger,
-	deploymentRequestService portsservice.DeploymentRequest,
+	deploymentRequest portsapi.DeploymentRequest,
 	userRepo portsdb.User,
 	deploymentRequestRepo portsdb.DeploymentRequest,
 ) *gin.Engine {
@@ -36,7 +36,7 @@ func SetupRouter(
 	// Initialize handlers with injected dependencies and auto-populate routes
 	initHandlers(
 		router,
-		deploymentRequestService,
+		deploymentRequest,
 		userRepo,
 		deploymentRequestRepo,
 		log,
@@ -48,14 +48,14 @@ func SetupRouter(
 // initHandlers initializes all handler instances and registers their routes
 func initHandlers(
 	router *gin.Engine,
-	deploymentRequestService portsservice.DeploymentRequest,
+	deploymentRequest portsapi.DeploymentRequest,
 	userRepo portsdb.User,
 	deploymentRequestRepo portsdb.DeploymentRequest,
 	log *zap.Logger,
 ) {
 	// Get all handlers that implement the Handler interface with injected dependencies
 	allHandlers := getHandlers(
-		deploymentRequestService,
+		deploymentRequest,
 		userRepo,
 		deploymentRequestRepo,
 		log,
@@ -93,14 +93,14 @@ func initHandlers(
 // getHandlers returns all handler instances that implement the Handler interface
 // Dependencies are injected via constructor functions
 func getHandlers(
-	deploymentRequestService portsservice.DeploymentRequest,
+	deploymentRequest portsapi.DeploymentRequest,
 	userRepo portsdb.User,
 	deploymentRequestRepo portsdb.DeploymentRequest,
 	log *zap.Logger,
 ) []ports.Handler {
 	return []ports.Handler{
 		handlers.NewDeploymentRequestHandler(
-			deploymentRequestService,
+			deploymentRequest,
 			userRepo,
 			deploymentRequestRepo,
 			log,

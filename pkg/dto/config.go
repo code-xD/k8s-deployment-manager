@@ -36,5 +36,25 @@ type ProducerConfig struct {
 	DeploymentUpdateChannel  string `mapstructure:"deployment_update_channel"`
 }
 
+// WorkerConfig holds configuration for the worker consumer
+type WorkerConfig struct {
+	Nats     NatsConfig     `mapstructure:"nats"`
+	Consumer ConsumerConfig `mapstructure:"consumer"`
+}
+
+// ConsumerConfig holds worker consumer settings
+type ConsumerConfig struct {
+	ShutdownTimeout          time.Duration         `mapstructure:"shutdown_timeout"`
+	DeploymentRequestTask    ConsumerTypeConfig    `mapstructure:"deployment_request_task"`
+}
+
+// ConsumerTypeConfig holds per-task-type configuration for a consumer route
+type ConsumerTypeConfig struct {
+	Channel     string         `mapstructure:"channel"`
+	QueueGroup  string         `mapstructure:"queue_group"`
+	TaskTimeout *time.Duration `mapstructure:"task_timeout"` // optional, uses consumer default if nil
+	RetryCount  *int           `mapstructure:"retry_count"`  // optional, uses consumer default if nil
+}
+
 // natsConfig is an alias for backward compatibility
 type natsConfig = NatsConfig
