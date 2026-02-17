@@ -16,10 +16,18 @@ func SetupRouter(
 	deploymentRequest portsworker.DeploymentRequest,
 	log *zap.Logger,
 ) {
-	// Initialize handlers with injected dependencies
+	registerDeploymentRequestRoutes(nc, cfg, deploymentRequest, log)
+}
+
+// registerDeploymentRequestRoutes initializes the deployment request handler and registers its route
+func registerDeploymentRequestRoutes(
+	nc *consumer.NATSConsumer,
+	cfg *dto.ConsumerConfig,
+	deploymentRequest portsworker.DeploymentRequest,
+	log *zap.Logger,
+) {
 	deploymentRequestHandler := handler.NewDeploymentRequestHandler(deploymentRequest, log)
 
-	// Register deployment request route
 	taskCfg := cfg.DeploymentRequestTask
 	channel := taskCfg.Channel
 	queueGroup := taskCfg.QueueGroup
