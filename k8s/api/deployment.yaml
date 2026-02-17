@@ -22,11 +22,11 @@ spec:
             - containerPort: 8080
               name: http
           env:
-            - name: PORT
+            - name: APP_ENV
               valueFrom:
                 configMapKeyRef:
                   name: api-config
-                  key: port
+                  key: app_env
           readinessProbe:
             httpGet:
               path: /api/v1/ping
