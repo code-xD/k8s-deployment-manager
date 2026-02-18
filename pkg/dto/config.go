@@ -50,12 +50,14 @@ type K8sConfig struct {
 	InCluster bool `mapstructure:"in_cluster"`
 	// Kubeconfig path when InCluster is false. Empty uses default (KUBECONFIG env or ~/.kube/config).
 	Kubeconfig string `mapstructure:"kubeconfig"`
+	// ManagerTag is the value for the managed-by label on created resources (from config key manager-tag).
+	ManagerTag string `mapstructure:"manager_tag"`
 }
 
 // ConsumerConfig holds worker consumer settings
 type ConsumerConfig struct {
-	ShutdownTimeout          time.Duration         `mapstructure:"shutdown_timeout"`
-	DeploymentRequestTask    ConsumerTypeConfig    `mapstructure:"deployment_request_task"`
+	ShutdownTimeout       time.Duration      `mapstructure:"shutdown_timeout"`
+	DeploymentRequestTask ConsumerTypeConfig `mapstructure:"deployment_request_task"`
 }
 
 // ConsumerTypeConfig holds per-task-type configuration for a consumer route

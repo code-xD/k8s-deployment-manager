@@ -13,6 +13,7 @@ database:
 k8s:
   in_cluster: false
   # kubeconfig: ""  # optional; empty = default
+  manager_tag: "k8s-deployment-manager"  # value for managed-by label on created resources (required)
 
 nats:
   url: "nats://localhost:4222"

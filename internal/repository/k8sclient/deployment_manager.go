@@ -25,6 +25,7 @@ type DeploymentManager struct {
 	templatesBasePath string
 	clientset         *kubernetes.Clientset
 	logger            *zap.Logger
+	managerTag        string
 }
 
 // NewDeploymentManager creates a new DeploymentManager.
@@ -46,10 +47,15 @@ func NewDeploymentManager(templatesBasePath string, cfg *dto.K8sConfig, logger *
 		return nil, fmt.Errorf("resolve templates path: %w", err)
 	}
 
+	if cfg == nil || cfg.ManagerTag == "" {
+		return nil, fmt.Errorf("k8s config manager-tag is required")
+	}
+
 	return &DeploymentManager{
 		templatesBasePath: basePath,
 		clientset:         clientset,
 		logger:            logger,
+		managerTag:        cfg.ManagerTag,
 	}, nil
 }
 
@@ -97,6 +103,7 @@ func (dm *DeploymentManager) Create(ctx context.Context, req *models.DeploymentR
 		RequestID:           req.RequestID,
 		DeploymentRequestID: req.ID.String(),
 		HasCustomHTML:       indexHTML != "",
+		ManagedBy:           dm.managerTag,
 	}
 
 	manifest, err := renderer.Execute(data)

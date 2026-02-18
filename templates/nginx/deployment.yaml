@@ -10,7 +10,7 @@ metadata:
     user-id: {{.UserID}}
     request-id: {{.RequestID}}
     deployment-request-id: {{.DeploymentRequestID}}
-    managed-by: k8s-deployment-manager
+    managed-by: {{.ManagedBy}}
 spec:
   replicas: 1
   selector:
@@ -22,7 +22,7 @@ spec:
         app: {{.Identifier}}
         name: {{.Name}}
         identifier: {{.Identifier}}
-        managed-by: k8s-deployment-manager
+        managed-by: {{.ManagedBy}}
     spec:
       containers:
         - name: {{.Identifier}}

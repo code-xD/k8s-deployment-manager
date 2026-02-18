@@ -11,4 +11,6 @@ type CreateTemplateData struct {
 	DeploymentRequestID string
 	// HasCustomHTML is true when metadata contains inline HTML (html/content/body); enables ConfigMap volume mount
 	HasCustomHTML bool
+	// ManagedBy is the value for the managed-by label (from config manager-tag)
+	ManagedBy string
 }
