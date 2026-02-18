@@ -17,9 +17,9 @@ import (
 
 // DeploymentRequestService implements worker-side deployment request processing
 type DeploymentRequestService struct {
-	deploymentRequestRepo  portsdb.DeploymentRequest
-	k8sDeploymentManager   portsk8s.DeploymentManager
-	logger                 *zap.Logger
+	deploymentRequestRepo portsdb.DeploymentRequest
+	k8sDeploymentManager  portsk8s.DeploymentManager
+	logger                *zap.Logger
 }
 
 // NewDeploymentRequestService creates a new worker deployment request service
@@ -91,7 +91,7 @@ func (s *DeploymentRequestService) processCreate(ctx context.Context, req *model
 // processUpdate invokes k8s deployment update and updates the deployment request status.
 func (s *DeploymentRequestService) processUpdate(ctx context.Context, req *models.DeploymentRequest, lastRetryAttempt bool) error {
 	// Get existing deployment from K8s
-	existingDeployment, found, err := s.k8sDeploymentManager.GetOptional(ctx, req.Namespace, req.Name)
+	existingDeployment, found, err := s.k8sDeploymentManager.GetOptional(ctx, req.Namespace, req.Identifier)
 	if err != nil {
 		if lastRetryAttempt {
 			errMsg := fmt.Sprintf("failed to get existing deployment: %v", err)
@@ -132,7 +132,7 @@ func (s *DeploymentRequestService) processUpdate(ctx context.Context, req *model
 // processDelete invokes k8s deployment deletion and updates the deployment request status.
 func (s *DeploymentRequestService) processDelete(ctx context.Context, req *models.DeploymentRequest, lastRetryAttempt bool) error {
 	// Delete the deployment from K8s
-	err := s.k8sDeploymentManager.Delete(ctx, req.Namespace, req.Name)
+	err := s.k8sDeploymentManager.Delete(ctx, req.Namespace, req.Identifier)
 	if err != nil {
 		if lastRetryAttempt {
 			errMsg := err.Error()
