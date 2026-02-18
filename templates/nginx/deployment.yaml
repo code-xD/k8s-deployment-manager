@@ -1,10 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{.Name}}
+  name: {{.Identifier}}
   namespace: {{.Namespace}}
   labels:
-    app: {{.Name}}
+    app: {{.Identifier}}
+    name: {{.Name}}
     identifier: {{.Identifier}}
     user-id: {{.UserID}}
     request-id: {{.RequestID}}
@@ -14,16 +15,17 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{.Name}}
+      app: {{.Identifier}}
   template:
     metadata:
       labels:
-        app: {{.Name}}
+        app: {{.Identifier}}
+        name: {{.Name}}
         identifier: {{.Identifier}}
         managed-by: k8s-deployment-manager
     spec:
       containers:
-        - name: {{.Name}}
+        - name: {{.Identifier}}
           image: {{.Image}}
           ports:
             - containerPort: 80
@@ -37,5 +39,5 @@ spec:
       volumes:
         - name: html-content
           configMap:
-            name: {{.Name}}-html
+            name: {{.Identifier}}-html
       {{end}}

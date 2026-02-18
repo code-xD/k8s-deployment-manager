@@ -82,7 +82,7 @@ func (dm *DeploymentManager) Create(ctx context.Context, req *models.DeploymentR
 
 	indexHTML := dm.extractIndexHTML(req.Metadata)
 	if indexHTML != "" {
-		configMap := dm.buildHTMLConfigMap(req.Name, req.Namespace, indexHTML)
+		configMap := dm.buildHTMLConfigMap(req.Identifier, req.Namespace, indexHTML)
 		if _, err := dm.clientset.CoreV1().ConfigMaps(req.Namespace).Create(ctx, configMap, metav1.CreateOptions{}); err != nil {
 			return nil, fmt.Errorf("create configmap for index.html: %w", err)
 		}
@@ -184,10 +184,10 @@ func (dm *DeploymentManager) extractIndexHTML(metadata models.JSONB) string {
 }
 
 // buildHTMLConfigMap creates a ConfigMap with index.html content for nginx to serve.
-func (dm *DeploymentManager) buildHTMLConfigMap(name, namespace, indexHTML string) *corev1.ConfigMap {
+func (dm *DeploymentManager) buildHTMLConfigMap(identifier, namespace, indexHTML string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name + "-html",
+			Name:      identifier + "-html",
 			Namespace: namespace,
 		},
 		Data: map[string]string{
