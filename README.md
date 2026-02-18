@@ -8,39 +8,7 @@ The K8s Deployment Manager enables users to create, update, and delete Kubernete
 
 ## High-Level Architecture
 
-```mermaid
-graph TB
-    subgraph "Third-Party Components"
-        DB[(PostgreSQL<br/>Database)]
-        Queue[NATS<br/>JetStream]
-        K8s[Kubernetes<br/>Cluster]
-    end
-    
-    subgraph "Application Stack"
-        API[API Server<br/>REST API]
-        Worker[Worker<br/>Consumer]
-        Watcher[Watcher<br/>Informer]
-    end
-    
-    User[User] -->|HTTP Requests| API
-    API -->|Store| DB
-    API -->|Publish| Queue
-    Queue -->|Consume| Worker
-    Worker -->|Execute| K8s
-    Worker -->|Update Status| DB
-    K8s -->|Watch Changes| Watcher
-    Watcher -->|Publish| Queue
-    Queue -->|Consume| Worker
-    Worker -->|Sync State| DB
-    API -->|Query| DB
-    
-    style DB fill:#e1f5ff
-    style Queue fill:#e1f5ff
-    style K8s fill:#e1f5ff
-    style API fill:#fff4e1
-    style Worker fill:#fff4e1
-    style Watcher fill:#fff4e1
-```
+![Architecture Diagram](./docs/arch.svg)
 
 ### Component Overview
 
@@ -245,5 +213,4 @@ This project follows a clean architecture pattern with clear separation of conce
 See [Internal Package Documentation](./internal/README.md) for more details.
 
 ## License
-
-[Add your license here]
+MIT license

@@ -2,6 +2,8 @@
 
 ## High-Level Design (HLD)
 
+![Architecture Diagram](./arch.svg)
+
 The K8s Deployment Manager follows an event-driven architecture with clear separation of concerns. The system consists of the following components:
 
 ### Stack Components
