@@ -71,6 +71,8 @@ const (
 	ConfigMapIndexHTML  = "index.html"
 	ConfigMapHTMLSuffix = "-html"
 	MapstructureTagJSON = "json"
+	// LabelKeyManagedBy is the label key for filtering deployments by manager (value from config manager_tag).
+	LabelKeyManagedBy = "managed-by"
 )
 
 // Conflict detection: substring used to detect "already exists" errors

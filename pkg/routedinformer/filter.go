@@ -5,54 +5,23 @@ import (
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers/internalinterfaces"
 )
 
-// Filter returns true if the object should be passed to the handler.
-// Stacked filters are applied in order; all must pass for the event to be routed.
-type Filter func(obj interface{}) bool
-
-// LabelFiltering returns a Filter that passes only objects whose labels match
-// all given key-value pairs. Values in required are converted to strings for comparison.
-// Supports multiple values per key as comma-separated string for OR semantics (e.g. "env": "dev,staging").
-func LabelFiltering(required map[string]interface{}) Filter {
-	if len(required) == 0 {
-		return func(interface{}) bool { return true }
+// LabelSelectorTweak returns a TweakListOptionsFunc that sets ListOptions.LabelSelector
+// so the informer only lists/watches resources matching the given labels (server-side).
+// Use at setup with WithTweakListOptions(LabelSelectorTweak(map[string]interface{}{"managed-by": managerTag})).
+// Values are converted to strings; multiple key-value pairs are ANDed (comma-separated selector).
+func LabelSelectorTweak(labels map[string]interface{}) internalinterfaces.TweakListOptionsFunc {
+	if len(labels) == 0 {
+		return func(*metav1.ListOptions) {}
 	}
-	return func(obj interface{}) bool {
-		meta, ok := obj.(metav1.Object)
-		if !ok {
-			return false
-		}
-		labels := meta.GetLabels()
-		if labels == nil {
-			labels = make(map[string]string)
-		}
-		for k, v := range required {
-			objVal := fmt.Sprint(v)
-			labelVal, has := labels[k]
-			if !has {
-				return false
-			}
-			// Optional: allow "val1,val2" in required to mean label must be one of these
-			if strings.Contains(objVal, ",") {
-				allowed := strings.Split(objVal, ",")
-				for i := range allowed {
-					allowed[i] = strings.TrimSpace(allowed[i])
-				}
-				found := false
-				for _, a := range allowed {
-					if labelVal == a {
-						found = true
-						break
-					}
-				}
-				if !found {
-					return false
-				}
-			} else if labelVal != objVal {
-				return false
-			}
-		}
-		return true
+	parts := make([]string, 0, len(labels))
+	for k, v := range labels {
+		parts = append(parts, k+"="+fmt.Sprint(v))
+	}
+	selector := strings.Join(parts, ",")
+	return func(opts *metav1.ListOptions) {
+		opts.LabelSelector = selector
 	}
 }

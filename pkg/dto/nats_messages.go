@@ -14,4 +14,5 @@ type DeploymentRequestMessage struct {
 // DeploymentUpdateMessage is the body for deployment update producer messages
 type DeploymentUpdateMessage struct {
 	Identifier string `json:"identifier"`
+	EventType  string `json:"event_type"` // "add", "update", "delete"
 }

@@ -3,11 +3,14 @@ package routedinformer
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
+	"k8s.io/client-go/informers/internalinterfaces"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -17,22 +20,19 @@ import (
 // For delete events, deployment may be nil if the object was already removed from the cache (e.g. DeletedFinalStateUnknown).
 type DeploymentEventHandler func(ctx context.Context, eventType DeploymentEventType, deployment *appsv1.Deployment)
 
-// RoutedInformer watches all deployments, applies stacked filters, and invokes the handler for each event that passes.
-// Filtering (e.g. managed-by) is configured at setup via WithFilter. Use Run() to start; handler runs with a task-timeout context.
+// RoutedInformer watches deployments; optional list-option tweaks (before Run) and in-process filters apply. Use WithTweakListOptions for server-side filtering (e.g. label selector).
 type RoutedInformer struct {
-	clientset    kubernetes.Interface
-	resyncPeriod  time.Duration
-	taskTimeout   time.Duration
-	handler      DeploymentEventHandler
-	logger       *zap.Logger
-	filters      []Filter
-	informer     cache.SharedInformer
-	stopCh       chan struct{}
+	clientset        kubernetes.Interface
+	resyncPeriod     time.Duration
+	taskTimeout      time.Duration
+	handler          DeploymentEventHandler
+	logger           *zap.Logger
+	tweakListOptions internalinterfaces.TweakListOptionsFunc
+	informer         cache.SharedInformer
+	stopCh           chan struct{}
 }
 
-// NewRoutedInformer creates an informer that watches all deployments, applies any stacked filters,
-// and calls handler for each add/update/delete that passes. Add filters at setup (e.g. LabelFiltering for managed-by).
-// Use Run() to start; handler is invoked with a context that times out after the configured task timeout.
+// NewRoutedInformer creates an informer for deployments. Use WithTweakListOptions (e.g. label selector) for server-side filtering before Run; optional WithFilter for in-process filtering.
 func NewRoutedInformer(
 	clientset kubernetes.Interface,
 	handler DeploymentEventHandler,
@@ -43,19 +43,28 @@ func NewRoutedInformer(
 	}
 
 	ri := &RoutedInformer{
-		clientset:   clientset,
+		clientset:    clientset,
 		resyncPeriod: 0,
 		taskTimeout:  0,
-		handler:     handler,
-		logger:      zap.NewNop(),
-		filters:     nil,
+		handler:      handler,
+		logger:       zap.NewNop(),
 	}
 
 	for _, opt := range opts {
 		opt(ri)
 	}
 
-	factory := informers.NewSharedInformerFactory(clientset, ri.resyncPeriod)
+	var factory informers.SharedInformerFactory
+	if ri.tweakListOptions != nil {
+		tweak := ri.tweakListOptions
+		factory = informers.NewSharedInformerFactoryWithOptions(
+			clientset,
+			ri.resyncPeriod,
+			informers.WithTweakListOptions(func(opts *metav1.ListOptions) { tweak(opts) }),
+		)
+	} else {
+		factory = informers.NewSharedInformerFactory(clientset, ri.resyncPeriod)
+	}
 
 	ri.informer = factory.Apps().V1().Deployments().Informer()
 	ri.informer.AddEventHandler(ri.resourceEventHandler())
@@ -73,15 +82,27 @@ func (ri *RoutedInformer) resourceEventHandler() cache.ResourceEventHandler {
 			ri.dispatch(DeploymentEventUpdate, newObj)
 		},
 		DeleteFunc: func(obj interface{}) {
-			d := ri.toDeployment(obj)
-			if d == nil {
-				if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-					d = ri.toDeployment(tombstone.Obj)
-				}
-			}
+			namespace, name := ri.getMetaNamespaceKey(obj)
+			d := &appsv1.Deployment{}
+			d.SetName(name)
+			d.SetNamespace(namespace)
 			ri.dispatchDeployment(DeploymentEventDelete, d)
 		},
 	}
+}
+
+// getMetaNamespaceKey returns namespace and name from obj using cache.MetaNamespaceKeyFunc.
+// Key is "namespace/name" for namespaced resources, or "name" for cluster-scoped.
+func (ri *RoutedInformer) getMetaNamespaceKey(obj interface{}) (namespace, name string) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil || key == "" {
+		return "", ""
+	}
+	parts := strings.SplitN(key, "/", 2)
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return "", parts[0]
 }
 
 func (ri *RoutedInformer) dispatch(eventType DeploymentEventType, obj interface{}) {
@@ -93,14 +114,6 @@ func (ri *RoutedInformer) dispatch(eventType DeploymentEventType, obj interface{
 }
 
 func (ri *RoutedInformer) dispatchDeployment(eventType DeploymentEventType, d *appsv1.Deployment) {
-	if d != nil {
-		for _, f := range ri.filters {
-			if !f(d) {
-				return
-			}
-		}
-	}
-
 	ctx := context.Background()
 	if ri.taskTimeout > 0 {
 		var cancel context.CancelFunc

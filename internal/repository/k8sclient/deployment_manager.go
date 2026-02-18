@@ -73,6 +73,15 @@ func buildRestConfig(cfg *dto.K8sConfig) (*rest.Config, error) {
 	).ClientConfig()
 }
 
+// NewClientSet returns a Kubernetes clientset for the given config (e.g. for use with informers).
+func NewClientSet(cfg *dto.K8sConfig) (kubernetes.Interface, error) {
+	restConfig, err := buildRestConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return kubernetes.NewForConfig(restConfig)
+}
+
 // Create fetches the template for the image, replaces placeholders with DeploymentRequest
 // details, validates the manifest, and creates the deployment in Kubernetes.
 // When metadata contains inline HTML (keys: "html", "content", or "body"), a ConfigMap is created and mounted into the nginx container.

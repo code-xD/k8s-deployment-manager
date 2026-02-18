@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"k8s.io/client-go/informers/internalinterfaces"
 )
 
 // Option configures RoutedInformer.
@@ -33,12 +34,10 @@ func WithTaskTimeout(d time.Duration) Option {
 	}
 }
 
-// WithFilter adds a filter to the stack. Filters are applied in order; all must pass
-// for the event to be routed to the handler.
-func WithFilter(f Filter) Option {
+// WithTweakListOptions sets the list-options tweak applied when building the informer (before Run).
+// Use this for server-side filtering (e.g. label selector) instead of in-process Filter.
+func WithTweakListOptions(tweak internalinterfaces.TweakListOptionsFunc) Option {
 	return func(i *RoutedInformer) {
-		if f != nil {
-			i.filters = append(i.filters, f)
-		}
+		i.tweakListOptions = tweak
 	}
 }

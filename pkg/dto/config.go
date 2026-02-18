@@ -42,6 +42,13 @@ type WorkerConfig struct {
 	K8s      K8sConfig      `mapstructure:"k8s"`
 	Nats     NatsConfig     `mapstructure:"nats"`
 	Consumer ConsumerConfig `mapstructure:"consumer"`
+	Watcher  WatcherConfig  `mapstructure:"watcher"`
+}
+
+// WatcherConfig holds configuration for the deployment informer (resync, task timeout)
+type WatcherConfig struct {
+	ResyncPeriod  time.Duration `mapstructure:"resync_period"`
+	TaskTimeout   time.Duration `mapstructure:"task_timeout"`
 }
 
 // K8sConfig holds Kubernetes client configuration

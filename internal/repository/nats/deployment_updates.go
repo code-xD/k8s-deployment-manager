@@ -3,7 +3,6 @@ package nats
 import (
 	"github.com/code-xd/k8s-deployment-manager/internal/repository/nats/common"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
-	"github.com/nats-io/nats.go"
 )
 
 // DeploymentUpdateProducer produces deployment update messages to the producer channel
@@ -20,11 +19,8 @@ func NewDeploymentUpdateProducer(producer *common.Producer, cfg *dto.ProducerCon
 	}
 }
 
-// Publish sends a message with headers request_id and user_id and body DeploymentUpdateMessage to the deployment update channel
-func (p *DeploymentUpdateProducer) Publish(identifier, requestID, userID string) error {
-	header := nats.Header{}
-	header.Set(dto.HeaderKeyRequestID, requestID)
-	header.Set(dto.HeaderKeyUserID, userID)
-	body := &dto.DeploymentUpdateMessage{Identifier: identifier}
-	return p.producer.PublishWithHeader(p.channel, body, header)
+// Publish sends a DeploymentUpdateMessage (identifier, eventType) to the deployment update channel
+func (p *DeploymentUpdateProducer) Publish(identifier, eventType string) error {
+	body := &dto.DeploymentUpdateMessage{Identifier: identifier, EventType: eventType}
+	return p.producer.Publish(p.channel, body)
 }
