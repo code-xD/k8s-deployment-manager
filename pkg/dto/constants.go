@@ -26,4 +26,6 @@ var (
 	ErrUserNotFound = errors.New("user not found")
 	// ErrInvalidUserID is returned when user ID header is invalid
 	ErrInvalidUserID = errors.New("invalid user ID")
+	// ErrDeploymentRequestNotFound is returned when deployment request is not found or not owned by user
+	ErrDeploymentRequestNotFound = errors.New("deployment request not found")
 )

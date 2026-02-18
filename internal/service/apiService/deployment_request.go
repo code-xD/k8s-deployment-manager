@@ -129,7 +129,7 @@ func (s *DeploymentRequestService) CreateDeploymentRequest(
 }
 
 // ListDeploymentRequests returns all deployment requests for the given user
-func (s *DeploymentRequestService) ListDeploymentRequests(ctx context.Context, userID string) ([]*dto.DeploymentRequestResponse, error) {
+func (s *DeploymentRequestService) ListDeploymentRequests(ctx context.Context, userID string) ([]*dto.DeploymentRequestListResponse, error) {
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid user ID: %w", err)
@@ -140,19 +140,46 @@ func (s *DeploymentRequestService) ListDeploymentRequests(ctx context.Context, u
 		return nil, fmt.Errorf("failed to list deployment requests: %w", err)
 	}
 
-	result := make([]*dto.DeploymentRequestResponse, 0, len(requests))
+	result := make([]*dto.DeploymentRequestListResponse, 0, len(requests))
 	for _, r := range requests {
-		result = append(result, &dto.DeploymentRequestResponse{
-			ID:          r.ID,
-			RequestID:   r.RequestID,
-			Identifier:  r.Identifier,
-			Name:        r.Name,
-			Namespace:   r.Namespace,
-			Image:       r.Image,
-			Status:      string(r.Status),
-			RequestType: string(r.RequestType),
-			Metadata:    map[string]interface{}(r.Metadata),
+		result = append(result, &dto.DeploymentRequestListResponse{
+			RequestID:     r.RequestID,
+			Identifier:    r.Identifier,
+			Name:          r.Name,
+			Namespace:     r.Namespace,
+			Image:         r.Image,
+			Status:        string(r.Status),
+			RequestType:   string(r.RequestType),
+			FailureReason: r.FailureReason,
 		})
 	}
 	return result, nil
+}
+
+// GetDeploymentRequest returns the full deployment request by request_id if it belongs to the user
+func (s *DeploymentRequestService) GetDeploymentRequest(ctx context.Context, requestID string, userID string) (*dto.DeploymentRequestResponse, error) {
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	r, found, err := s.repo.GetByRequestID(ctx, requestID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get deployment request: %w", err)
+	}
+	if !found || r.UserID != userUUID {
+		return nil, dto.ErrDeploymentRequestNotFound
+	}
+
+	return &dto.DeploymentRequestResponse{
+		ID:          r.ID,
+		RequestID:   r.RequestID,
+		Identifier:  r.Identifier,
+		Name:        r.Name,
+		Namespace:   r.Namespace,
+		Image:       r.Image,
+		Status:      string(r.Status),
+		RequestType: string(r.RequestType),
+		Metadata:    map[string]interface{}(r.Metadata),
+	}, nil
 }

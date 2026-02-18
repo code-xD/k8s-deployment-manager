@@ -56,3 +56,15 @@ type DeploymentRequestResponse struct {
 	RequestType string                 `json:"request_type"`
 	Metadata    map[string]interface{} `json:"metadata"`
 }
+
+// DeploymentRequestListResponse represents a deployment request in list responses (no metadata, includes failure_reason)
+type DeploymentRequestListResponse struct {
+	RequestID     string  `json:"request_id"`
+	Identifier    string  `json:"identifier"`
+	Name          string  `json:"name"`
+	Namespace     string  `json:"namespace"`
+	Image         string  `json:"image"`
+	Status        string  `json:"status"`
+	RequestType   string  `json:"request_type"`
+	FailureReason *string `json:"failure_reason,omitempty"`
+}

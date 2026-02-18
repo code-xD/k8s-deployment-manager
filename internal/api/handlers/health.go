@@ -31,7 +31,7 @@ func (h *HealthHandler) GetRoutes() []dto.RouteDefinition {
 // Ping handles GET /api/v1/ping
 // @Summary      Health check (ping)
 // @Description  Returns a simple pong response to verify the API is up
-// @Tags         health
+// @Tags         Health
 // @Accept       json
 // @Produce      json
 // @Success      200  {object}  map[string]interface{}  "pong message"

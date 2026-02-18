@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -50,6 +51,17 @@ func (h *DeploymentRequestHandler) GetRoutes() []dto.RouteDefinition {
 			Handler: middleware.NoBodyHandler(h.ListDeploymentRequests),
 		},
 		{
+			Method: "GET",
+			Path:   "/api/v1/deployment/requests/:id",
+			Middlewares: []gin.HandlerFunc{
+				middleware.AuthReadMiddleware(
+					h.userRepo,
+					h.log,
+				),
+			},
+			Handler: middleware.NoBodyHandler(h.GetDeploymentRequest),
+		},
+		{
 			Method: "POST",
 			Path:   "/api/v1/deployments/create",
 			// Middlewares are applied in order: RequestID -> Auth -> Validation -> Handler
@@ -74,11 +86,11 @@ func (h *DeploymentRequestHandler) GetRoutes() []dto.RouteDefinition {
 // ListDeploymentRequests handles GET /api/v1/deployments/requests
 // @Summary      List deployment requests for the authenticated user
 // @Description  Returns all deployment requests for the user identified by X-User-ID header
-// @Tags         deployments
+// @Tags         Deployment Requests
 // @Accept       json
 // @Produce      json
 // @Param        X-User-ID  header    string  true  "User ID for authentication"
-// @Success      200        {object}  dto.SuccessResponse{data=[]dto.DeploymentRequestResponse}
+// @Success      200        {object}  dto.SuccessResponse{data=[]dto.DeploymentRequestListResponse}
 // @Failure      401        {object}  dto.ErrorResponse  "Missing or invalid X-User-ID"
 // @Failure      403        {object}  dto.ErrorResponse  "User not found"
 // @Router       /deployments/requests [get]
@@ -107,10 +119,64 @@ func (h *DeploymentRequestHandler) ListDeploymentRequests(c *gin.Context) {
 	})
 }
 
+// GetDeploymentRequest handles GET /api/v1/deployment/requests/:id
+// @Summary      Get a deployment request by request ID
+// @Description  Returns the full deployment request including metadata for the given request_id. Only returns if owned by the authenticated user.
+// @Tags         Deployment Requests
+// @Accept       json
+// @Produce      json
+// @Param        X-User-ID  header    string  true   "User ID for authentication"
+// @Param        id         path      string  true   "Request ID of the deployment request"
+// @Success      200        {object}  dto.SuccessResponse{data=dto.DeploymentRequestResponse}
+// @Failure      401        {object}  dto.ErrorResponse  "Missing or invalid X-User-ID"
+// @Failure      403        {object}  dto.ErrorResponse  "User not found"
+// @Failure      404        {object}  dto.ErrorResponse  "Deployment request not found"
+// @Router       /deployment/requests/{id} [get]
+func (h *DeploymentRequestHandler) GetDeploymentRequest(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Error:   "User ID not found",
+			Details: map[string]interface{}{"error": err.Error()},
+		})
+		return
+	}
+
+	requestID := c.Param("id")
+	if requestID == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error:   "Request ID is required",
+			Details: map[string]interface{}{"param": "id"},
+		})
+		return
+	}
+
+	dr, err := h.deploymentRequest.GetDeploymentRequest(c.Request.Context(), requestID, userID.String())
+	if err != nil {
+		if errors.Is(err, dto.ErrDeploymentRequestNotFound) {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{
+				Error:   "Deployment request not found",
+				Details: map[string]interface{}{"error": err.Error()},
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Error:   "Failed to get deployment request",
+			Details: map[string]interface{}{"error": err.Error()},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.SuccessResponse{
+		Message: "Deployment request retrieved successfully",
+		Data:    dr,
+	})
+}
+
 // CreateDeploymentRequest handles POST /api/v1/deployments/create
 // @Summary      Create a deployment request
 // @Description  Create a new deployment request with metadata
-// @Tags         deployments
+// @Tags         Deployment
 // @Accept       json
 // @Produce      json
 // @Param        X-Request-ID  header    string                              true  "Request ID for idempotency"
