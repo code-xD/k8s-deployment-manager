@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto/models"
@@ -36,10 +37,10 @@ func NewDeploymentUpdateService(
 }
 
 // ProcessDeploymentUpdate processes a deployment update message:
-// 1. Parses identifier to get namespace/name
-// 2. Fetches deployment from Kubernetes
-// 3. Extracts identifier, user_id, name, namespace, resourceVersion, status
-// 4. Upserts to database (only if resourceVersion changed)
+// 1. Fetches from both DB (by identifier) and K8s (by namespace/name), with error checks.
+// 2. If not in DB and not in K8s → return as is.
+// 3. If in DB and not in K8s → mark as deleted.
+// 4. Else (in K8s) → extract metadata and upsert as usual.
 func (s *DeploymentUpdateService) ProcessDeploymentUpdate(ctx context.Context, msg *dto.DeploymentUpdateMessage) error {
 	// Parse identifier (format: namespace/name)
 	parts := strings.Split(msg.Identifier, "/")
@@ -49,35 +50,64 @@ func (s *DeploymentUpdateService) ProcessDeploymentUpdate(ctx context.Context, m
 	namespace := parts[0]
 	name := parts[1]
 
-	// Fetch deployment from Kubernetes
-	k8sDeployment, err := s.k8sDeploymentManager.Get(ctx, namespace, name)
+	// Fetch from both DB and K8s
+	dbDeployment, dbExists, err := s.deploymentRepo.GetByIdentifier(ctx, name)
+	if err != nil {
+		return fmt.Errorf("get deployment by identifier: %w", err)
+	}
+	k8sDeployment, k8sExists, err := s.k8sDeploymentManager.GetOptional(ctx, namespace, name)
 	if err != nil {
 		return fmt.Errorf("get deployment from k8s: %w", err)
 	}
 
-	// Extract fields from k8s deployment
+	if !dbExists && !k8sExists {
+		return nil
+	}
+	if dbExists && !k8sExists {
+		return s.markDeploymentDeleted(ctx, dbDeployment, msg.Identifier)
+	}
+
+	// Usual flow: in K8s — extract metadata and upsert
 	deployment, err := s.extractDeploymentFromK8s(k8sDeployment)
 	if err != nil {
 		return fmt.Errorf("extract deployment from k8s object: %w", err)
 	}
-
-	// Upsert to database
 	if err := s.deploymentRepo.Upsert(ctx, deployment); err != nil {
 		return fmt.Errorf("upsert deployment: %w", err)
 	}
-
 	s.logger.Info("Processed deployment update",
 		zap.String("identifier", deployment.Identifier),
 		zap.String("resource_version", deployment.ResourceVersion),
 		zap.String("status", string(deployment.Status)),
 	)
+	return nil
+}
 
+// markDeploymentDeleted sets deployment status to DELETED and updates the DB when the deployment exists in DB but not in K8s.
+func (s *DeploymentUpdateService) markDeploymentDeleted(ctx context.Context, dbDeployment *models.Deployment, identifier string) error {
+	if dbDeployment.Status == models.DeploymentStatusDeleted {
+		return nil
+	}
+	now := time.Now()
+	dbDeployment.Status = models.DeploymentStatusDeleted
+	dbDeployment.UpdatedOn = &now
+	if err := s.deploymentRepo.Update(ctx, dbDeployment); err != nil {
+		return fmt.Errorf("update deployment status to deleted: %w", err)
+	}
+	s.logger.Info("Marked deployment as deleted (not found in k8s)",
+		zap.String("identifier", identifier),
+	)
 	return nil
 }
 
 // extractDeploymentFromK8s extracts deployment fields from Kubernetes deployment object
 func (s *DeploymentUpdateService) extractDeploymentFromK8s(k8sDeployment *appsv1.Deployment) (*models.Deployment, error) {
-	deployment := &models.Deployment{}
+	now := time.Now()
+	deployment := &models.Deployment{
+		Common: models.Common{
+			UpdatedOn: &now,
+		},
+	}
 
 	// Extract identifier from labels
 	identifier, ok := k8sDeployment.Labels["identifier"]
@@ -98,7 +128,11 @@ func (s *DeploymentUpdateService) extractDeploymentFromK8s(k8sDeployment *appsv1
 	deployment.UserID = userID
 
 	// Extract name and namespace from metadata
-	deployment.Name = k8sDeployment.Name
+	deployment.Name, ok = k8sDeployment.Labels["name"]
+	if !ok {
+		return nil, fmt.Errorf("deployment missing name label")
+	}
+
 	deployment.Namespace = k8sDeployment.Namespace
 
 	// Extract resourceVersion from metadata
