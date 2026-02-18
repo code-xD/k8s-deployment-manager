@@ -7,7 +7,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 )
 
-// Deployment defines the interface for Kubernetes deployment operations
-type Deployment interface {
+// DeploymentManager defines the interface for Kubernetes deployment operations
+type DeploymentManager interface {
 	Create(ctx context.Context, req *models.DeploymentRequest) (*appsv1.Deployment, error)
 }

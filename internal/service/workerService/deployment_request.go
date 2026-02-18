@@ -18,20 +18,20 @@ import (
 
 // DeploymentRequestService implements worker-side deployment request processing
 type DeploymentRequestService struct {
-	deploymentRequestRepo portsdb.DeploymentRequest
-	k8sDeployment         portsk8s.Deployment
-	logger                *zap.Logger
+	deploymentRequestRepo  portsdb.DeploymentRequest
+	k8sDeploymentManager   portsk8s.DeploymentManager
+	logger                 *zap.Logger
 }
 
 // NewDeploymentRequestService creates a new worker deployment request service
 func NewDeploymentRequestService(
 	deploymentRequestRepo portsdb.DeploymentRequest,
-	k8sDeployment portsk8s.Deployment,
+	k8sDeploymentManager portsk8s.DeploymentManager,
 	logger *zap.Logger,
 ) portsworker.DeploymentRequest {
 	return &DeploymentRequestService{
 		deploymentRequestRepo: deploymentRequestRepo,
-		k8sDeployment:         k8sDeployment,
+		k8sDeploymentManager:  k8sDeploymentManager,
 		logger:                logger,
 	}
 }
@@ -72,7 +72,7 @@ func (s *DeploymentRequestService) ProcessDeploymentRequest(ctx context.Context,
 
 // processCreate invokes k8s deployment creation and updates the deployment request status.
 func (s *DeploymentRequestService) processCreate(ctx context.Context, req *models.DeploymentRequest, lastRetryAttempt bool) error {
-	_, err := s.k8sDeployment.Create(ctx, req)
+	_, err := s.k8sDeploymentManager.Create(ctx, req)
 	if err != nil {
 		if lastRetryAttempt {
 			if updateErr := s.deploymentRequestRepo.UpdateStatus(ctx, req.ID, models.DeploymentRequestStatusFailure); updateErr != nil {

@@ -8,6 +8,7 @@ import (
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto/models"
 	"github.com/code-xd/k8s-deployment-manager/pkg/utils"
+	"github.com/go-viper/mapstructure/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -18,16 +19,16 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// Deployment handles Kubernetes deployment operations.
-type Deployment struct {
+// DeploymentManager handles Kubernetes deployment operations.
+type DeploymentManager struct {
 	templatesBasePath string
 	clientset         *kubernetes.Clientset
 }
 
-// NewDeployment creates a new Deployment repository.
+// NewDeploymentManager creates a new DeploymentManager.
 // templatesBasePath is the directory containing the templates folder (e.g. project root or ".").
 // cfg controls whether to use in-cluster config or kubeconfig. If nil, in-cluster is used.
-func NewDeployment(templatesBasePath string, cfg *dto.K8sConfig) (*Deployment, error) {
+func NewDeploymentManager(templatesBasePath string, cfg *dto.K8sConfig) (*DeploymentManager, error) {
 	restConfig, err := buildRestConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -43,7 +44,7 @@ func NewDeployment(templatesBasePath string, cfg *dto.K8sConfig) (*Deployment, e
 		return nil, fmt.Errorf("resolve templates path: %w", err)
 	}
 
-	return &Deployment{
+	return &DeploymentManager{
 		templatesBasePath: basePath,
 		clientset:         clientset,
 	}, nil
@@ -66,8 +67,8 @@ func buildRestConfig(cfg *dto.K8sConfig) (*rest.Config, error) {
 // Create fetches the template for the image, replaces placeholders with DeploymentRequest
 // details, validates the manifest, and creates the deployment in Kubernetes.
 // When metadata contains inline HTML (keys: "html", "content", or "body"), a ConfigMap is created and mounted into the nginx container.
-func (d *Deployment) Create(ctx context.Context, req *models.DeploymentRequest) (*appsv1.Deployment, error) {
-	renderer := utils.NewTemplateRenderer[dto.CreateTemplateData](d.templatesBasePath, req.Image)
+func (dm *DeploymentManager) Create(ctx context.Context, req *models.DeploymentRequest) (*appsv1.Deployment, error) {
+	renderer := utils.NewTemplateRenderer[dto.CreateTemplateData](dm.templatesBasePath, req.Image)
 	if renderer.TemplateName() != "nginx" {
 		return nil, fmt.Errorf("unsupported image: only nginx is supported, got %q", req.Image)
 	}
@@ -76,10 +77,10 @@ func (d *Deployment) Create(ctx context.Context, req *models.DeploymentRequest) 
 		return nil, fmt.Errorf("load template: %w", err)
 	}
 
-	indexHTML := d.extractIndexHTML(req.Metadata)
+	indexHTML := dm.extractIndexHTML(req.Metadata)
 	if indexHTML != "" {
-		configMap := d.buildHTMLConfigMap(req.Name, req.Namespace, indexHTML)
-		if _, err := d.clientset.CoreV1().ConfigMaps(req.Namespace).Create(ctx, configMap, metav1.CreateOptions{}); err != nil {
+		configMap := dm.buildHTMLConfigMap(req.Name, req.Namespace, indexHTML)
+		if _, err := dm.clientset.CoreV1().ConfigMaps(req.Namespace).Create(ctx, configMap, metav1.CreateOptions{}); err != nil {
 			return nil, fmt.Errorf("create configmap for index.html: %w", err)
 		}
 	}
@@ -100,16 +101,16 @@ func (d *Deployment) Create(ctx context.Context, req *models.DeploymentRequest) 
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
 
-	deployment, err := d.parseAndValidate(manifest)
+	deployment, err := dm.parseAndValidate(manifest)
 	if err != nil {
 		return nil, fmt.Errorf("parse and validate: %w", err)
 	}
 
-	if err := d.getOrCreateNamespace(ctx, req.Namespace); err != nil {
+	if err := dm.getOrCreateNamespace(ctx, req.Namespace); err != nil {
 		return nil, fmt.Errorf("failed to get or create namespace: %w", err)
 	}
 
-	created, err := d.clientset.AppsV1().Deployments(req.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
+	created, err := dm.clientset.AppsV1().Deployments(req.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("create deployment in cluster: %w", err)
 	}
@@ -117,13 +118,13 @@ func (d *Deployment) Create(ctx context.Context, req *models.DeploymentRequest) 
 	return created, nil
 }
 
-func (d *Deployment) getOrCreateNamespace(ctx context.Context, namespace string) error {
-	_, err := d.clientset.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+func (dm *DeploymentManager) getOrCreateNamespace(ctx context.Context, namespace string) error {
+	_, err := dm.clientset.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 	if err == nil || !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	_, err = d.clientset.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
+	_, err = dm.clientset.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{Name: namespace},
 	}, metav1.CreateOptions{})
 
@@ -131,46 +132,54 @@ func (d *Deployment) getOrCreateNamespace(ctx context.Context, namespace string)
 }
 
 // parseAndValidate decodes the YAML manifest into an appsv1.Deployment and validates it.
-func (d *Deployment) parseAndValidate(manifest string) (*appsv1.Deployment, error) {
-	var deployment appsv1.Deployment
-	if err := yaml.Unmarshal([]byte(manifest), &deployment); err != nil {
+func (dm *DeploymentManager) parseAndValidate(manifest string) (*appsv1.Deployment, error) {
+	var depl appsv1.Deployment
+	if err := yaml.Unmarshal([]byte(manifest), &depl); err != nil {
 		return nil, fmt.Errorf("yaml unmarshal: %w", err)
 	}
 
-	if deployment.Name == "" {
+	if depl.Name == "" {
 		return nil, fmt.Errorf("deployment name is required")
 	}
-	if deployment.Namespace == "" {
-		deployment.Namespace = corev1.NamespaceDefault
+	if depl.Namespace == "" {
+		depl.Namespace = corev1.NamespaceDefault
 	}
-	if len(deployment.Spec.Template.Spec.Containers) == 0 {
+	if len(depl.Spec.Template.Spec.Containers) == 0 {
 		return nil, fmt.Errorf("deployment must have at least one container")
 	}
-	if deployment.Spec.Template.Spec.Containers[0].Image == "" {
+	if depl.Spec.Template.Spec.Containers[0].Image == "" {
 		return nil, fmt.Errorf("container image is required")
 	}
 
-	return &deployment, nil
+	return &depl, nil
 }
 
 // extractIndexHTML returns the inline HTML content from metadata if present.
 // Supports keys: "html", "content", "body"
-func (d *Deployment) extractIndexHTML(metadata models.JSONB) string {
+func (dm *DeploymentManager) extractIndexHTML(metadata models.JSONB) string {
 	if metadata == nil {
 		return ""
 	}
-	for _, key := range []string{"html", "content", "body"} {
-		if v, ok := metadata[key]; ok && v != nil {
-			if s, ok := v.(string); ok {
-				return s
-			}
-		}
+
+	var deploymentMetadata dto.DeploymentMetadata
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result:  &deploymentMetadata,
+		TagName: "json",
+	})
+	if err != nil {
+		return ""
 	}
-	return ""
+
+	err = decoder.Decode(metadata)
+	if err != nil {
+		return ""
+	}
+
+	return deploymentMetadata.DocHTML
 }
 
 // buildHTMLConfigMap creates a ConfigMap with index.html content for nginx to serve.
-func (d *Deployment) buildHTMLConfigMap(name, namespace, indexHTML string) *corev1.ConfigMap {
+func (dm *DeploymentManager) buildHTMLConfigMap(name, namespace, indexHTML string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name + "-html",
