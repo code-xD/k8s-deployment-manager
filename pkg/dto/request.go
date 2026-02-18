@@ -31,6 +31,14 @@ type DeploymentMetadata struct {
 	DocHTML       string           `json:"doc_html" validate:"required"`
 }
 
+// UpdateDeploymentRequestMetadata represents optional metadata for updating a deployment
+// All fields are optional, but if resources is provided, all fields within it must be provided
+type UpdateDeploymentRequestMetadata struct {
+	ReplicaCount  *int              `json:"replica_count,omitempty" validate:"omitempty,gte=1,lte=100"`
+	ResourceLimit *ResourceMetadata `json:"resource_limit,omitempty" validate:"omitempty"`
+	DocHTML       *string           `json:"doc_html,omitempty" validate:"omitempty"`
+}
+
 type ResourceMetadata struct {
 	Request ResourceLimitInfo `json:"request" validate:"required"`
 	Limit   ResourceLimitInfo `json:"limit" validate:"required"`

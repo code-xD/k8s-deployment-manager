@@ -27,6 +27,8 @@ const (
 	MsgDeploymentRequestsRetrieved = "Deployment requests retrieved successfully"
 	MsgDeploymentRequestRetrieved  = "Deployment request retrieved successfully"
 	MsgDeploymentRequestCreated    = "Deployment request created successfully"
+	MsgDeploymentRequestUpdated    = "Deployment request updated successfully"
+	MsgDeploymentRequestDeleted    = "Deployment request deleted successfully"
 	MsgDeploymentsRetrieved        = "Deployments retrieved successfully"
 	MsgDeploymentRetrieved         = "Deployment retrieved successfully"
 

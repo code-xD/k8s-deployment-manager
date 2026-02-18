@@ -11,4 +11,6 @@ type DeploymentRequest interface {
 	CreateDeploymentRequest(ctx context.Context, req *dto.CreateDeploymentRequestWithMetadata, requestID string, userID string) (*dto.DeploymentRequestResponse, error)
 	ListDeploymentRequests(ctx context.Context, userID string) ([]*dto.DeploymentRequestListResponse, error)
 	GetDeploymentRequest(ctx context.Context, requestID string, userID string) (*dto.DeploymentRequestResponse, error)
+	UpdateDeploymentRequest(ctx context.Context, identifier string, req *dto.UpdateDeploymentRequestMetadata, requestID string, userID string) (*dto.DeploymentRequestResponse, error)
+	DeleteDeploymentRequest(ctx context.Context, identifier string, requestID string, userID string) (*dto.DeploymentRequestResponse, error)
 }

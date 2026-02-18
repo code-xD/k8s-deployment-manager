@@ -183,3 +183,182 @@ func (s *DeploymentRequestService) GetDeploymentRequest(ctx context.Context, req
 		Metadata:    map[string]interface{}(r.Metadata),
 	}, nil
 }
+
+// UpdateDeploymentRequest handles the business logic for updating a deployment request
+func (s *DeploymentRequestService) UpdateDeploymentRequest(
+	ctx context.Context,
+	identifier string,
+	req *dto.UpdateDeploymentRequestMetadata,
+	requestID string,
+	userID string,
+) (*dto.DeploymentRequestResponse, error) {
+	s.logger.Info("Updating deployment request",
+		zap.String("request_id", requestID),
+		zap.String("identifier", identifier),
+		zap.String("user_id", userID),
+	)
+
+	// Step 1: Check if deployment exists by identifier, is not deleted, and belongs to user
+	deployment, found, err := s.deploymentRepo.GetByIdentifier(ctx, identifier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing deployment: %w", err)
+	}
+	if !found {
+		return nil, dto.ErrDeploymentNotFound
+	}
+
+	// Parse user ID
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Check if deployment belongs to user
+	if deployment.UserID != userUUID {
+		return nil, dto.ErrDeploymentNotFound
+	}
+
+	// Check if deployment is deleted
+	if deployment.Status == models.DeploymentStatusDeleted {
+		return nil, fmt.Errorf("deployment with identifier '%s' is deleted", identifier)
+	}
+
+	// Build metadata map from optional fields
+	metadata := make(models.JSONB)
+	if req.ReplicaCount != nil {
+		metadata["replica_count"] = *req.ReplicaCount
+	}
+	if req.ResourceLimit != nil {
+		metadata["resource_limit"] = req.ResourceLimit
+	}
+	if req.DocHTML != nil {
+		metadata["doc_html"] = *req.DocHTML
+	}
+
+	// Convert DTO to model
+	deploymentRequest := &models.DeploymentRequest{
+		RequestID:   requestID,
+		Identifier:  identifier,
+		Name:        deployment.Name,
+		Namespace:   deployment.Namespace,
+		RequestType: models.DeploymentRequestTypeUpdate,
+		Status:      models.DeploymentRequestStatusCreated,
+		Image:       deployment.Image,
+		UserID:      userUUID,
+		Metadata:    metadata,
+	}
+
+	// Save to database via repository
+	if err := s.repo.Create(ctx, deploymentRequest); err != nil {
+		return nil, fmt.Errorf("failed to create deployment request in database: %w", err)
+	}
+
+	// Publish to NATS for worker processing
+	if err := s.publisher.Publish(requestID, userID); err != nil {
+		s.logger.Error("Failed to publish deployment request to NATS",
+			zap.String("request_id", requestID),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("failed to publish deployment request: %w", err)
+	}
+
+	s.logger.Info("Deployment request updated and published",
+		zap.String("request_id", requestID),
+		zap.String("identifier", identifier),
+	)
+
+	return &dto.DeploymentRequestResponse{
+		ID:          deploymentRequest.ID,
+		RequestID:   deploymentRequest.RequestID,
+		Identifier:  deploymentRequest.Identifier,
+		Name:        deploymentRequest.Name,
+		Namespace:   deploymentRequest.Namespace,
+		Image:       deploymentRequest.Image,
+		Status:      string(deploymentRequest.Status),
+		RequestType: string(deploymentRequest.RequestType),
+		Metadata:    map[string]interface{}(deploymentRequest.Metadata),
+	}, nil
+}
+
+// DeleteDeploymentRequest handles the business logic for deleting a deployment request
+func (s *DeploymentRequestService) DeleteDeploymentRequest(
+	ctx context.Context,
+	identifier string,
+	requestID string,
+	userID string,
+) (*dto.DeploymentRequestResponse, error) {
+	s.logger.Info("Deleting deployment request",
+		zap.String("request_id", requestID),
+		zap.String("identifier", identifier),
+		zap.String("user_id", userID),
+	)
+
+	// Step 1: Check if deployment exists by identifier, is not deleted, and belongs to user
+	deployment, found, err := s.deploymentRepo.GetByIdentifier(ctx, identifier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing deployment: %w", err)
+	}
+	if !found {
+		return nil, dto.ErrDeploymentNotFound
+	}
+
+	// Parse user ID
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	// Check if deployment belongs to user
+	if deployment.UserID != userUUID {
+		return nil, dto.ErrDeploymentNotFound
+	}
+
+	// Check if deployment is deleted
+	if deployment.Status == models.DeploymentStatusDeleted {
+		return nil, fmt.Errorf("deployment with identifier '%s' is already deleted", identifier)
+	}
+
+	// Convert DTO to model - no metadata needed for delete
+	deploymentRequest := &models.DeploymentRequest{
+		RequestID:   requestID,
+		Identifier:  identifier,
+		Name:        deployment.Name,
+		Namespace:   deployment.Namespace,
+		RequestType: models.DeploymentRequestTypeDelete,
+		Status:      models.DeploymentRequestStatusCreated,
+		Image:       deployment.Image,
+		UserID:      userUUID,
+		Metadata:    make(models.JSONB),
+	}
+
+	// Save to database via repository
+	if err := s.repo.Create(ctx, deploymentRequest); err != nil {
+		return nil, fmt.Errorf("failed to create deployment request in database: %w", err)
+	}
+
+	// Publish to NATS for worker processing
+	if err := s.publisher.Publish(requestID, userID); err != nil {
+		s.logger.Error("Failed to publish deployment request to NATS",
+			zap.String("request_id", requestID),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("failed to publish deployment request: %w", err)
+	}
+
+	s.logger.Info("Deployment request deleted and published",
+		zap.String("request_id", requestID),
+		zap.String("identifier", identifier),
+	)
+
+	return &dto.DeploymentRequestResponse{
+		ID:          deploymentRequest.ID,
+		RequestID:   deploymentRequest.RequestID,
+		Identifier:  deploymentRequest.Identifier,
+		Name:        deploymentRequest.Name,
+		Namespace:   deploymentRequest.Namespace,
+		Image:       deploymentRequest.Image,
+		Status:      string(deploymentRequest.Status),
+		RequestType: string(deploymentRequest.RequestType),
+		Metadata:    map[string]interface{}(deploymentRequest.Metadata),
+	}, nil
+}

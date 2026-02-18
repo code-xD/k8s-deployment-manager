@@ -80,6 +80,39 @@ func (h *DeploymentRequestHandler) GetRoutes() []dto.RouteDefinition {
 				h.CreateDeploymentRequest,
 			),
 		},
+		{
+			Method: "PATCH",
+			Path:   dto.PathDeploymentRequestByID,
+			// Middlewares are applied in order: RequestID -> Auth -> Validation -> Handler
+			Middlewares: []gin.HandlerFunc{
+				middleware.RequestIDMiddleware(
+					h.deploymentRequestRepo,
+				),
+				middleware.AuthReadMiddleware(
+					h.userRepo,
+					h.log,
+				),
+			},
+			// Handler wrapped with ValidateRequest to get validated body directly
+			Handler: middleware.ValidateRequest[dto.UpdateDeploymentRequestMetadata](
+				h.UpdateDeploymentRequest,
+			),
+		},
+		{
+			Method: "DELETE",
+			Path:   dto.PathDeploymentRequestByID,
+			// Middlewares are applied in order: RequestID -> Auth -> Handler
+			Middlewares: []gin.HandlerFunc{
+				middleware.RequestIDMiddleware(
+					h.deploymentRequestRepo,
+				),
+				middleware.AuthReadMiddleware(
+					h.userRepo,
+					h.log,
+				),
+			},
+			Handler: middleware.NoBodyHandler(h.DeleteDeploymentRequest),
+		},
 	}
 }
 
@@ -233,6 +266,159 @@ func (h *DeploymentRequestHandler) CreateDeploymentRequest(c *gin.Context, req *
 
 	c.JSON(http.StatusCreated, dto.SuccessResponse{
 		Message: dto.MsgDeploymentRequestCreated,
+		Data:    deploymentRequest,
+	})
+}
+
+// UpdateDeploymentRequest handles PATCH /api/v1/deployments/requests/:id
+// @Summary      Update a deployment request
+// @Description  Update an existing deployment request with optional metadata fields
+// @Tags         DeploymentRequestService
+// @Accept       json
+// @Produce      json
+// @Param        X-Request-ID  header    string                              true  "Request ID for idempotency"
+// @Param        X-User-ID     header    string                              true  "User ID for authentication"
+// @Param        id            path      string                              true  "Deployment identifier"
+// @Param        request       body      dto.UpdateDeploymentRequestMetadata true  "Deployment request update details"
+// @Success      200           {object}  dto.SuccessResponse{data=dto.DeploymentRequestResponse}
+// @Failure      400           {object}  dto.ErrorResponse  "Invalid request"
+// @Failure      401           {object}  dto.ErrorResponse  "Missing or invalid X-User-ID"
+// @Failure      404           {object}  dto.ErrorResponse  "Deployment not found"
+// @Router       /deployments/requests/{id} [patch]
+// Request body is validated and provided by ValidateRequest middleware
+// RequestID and UserID are available in context from previous middlewares
+func (h *DeploymentRequestHandler) UpdateDeploymentRequest(c *gin.Context, req *dto.UpdateDeploymentRequestMetadata) {
+	// Extract request ID from context (set by RequestIDMiddleware)
+	requestID, err := middleware.GetRequestIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error:   dto.ErrMsgRequestIDNotFound,
+			Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
+		})
+		return
+	}
+
+	// Extract user ID from context (set by AuthReadMiddleware)
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Error:   dto.ErrMsgUserIDNotFound,
+			Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
+		})
+		return
+	}
+
+	// Extract identifier from path parameter
+	identifier := c.Param(dto.ParamID)
+	if identifier == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error:   dto.ErrMsgIdentifierRequired,
+			Details: map[string]interface{}{dto.ResponseKeyParam: dto.ParamID},
+		})
+		return
+	}
+
+	// Call service to update deployment request
+	deploymentRequest, err := h.deploymentRequest.UpdateDeploymentRequest(
+		c.Request.Context(),
+		identifier,
+		req,
+		requestID,
+		userID.String(),
+	)
+	if err != nil {
+		if errors.Is(err, dto.ErrDeploymentNotFound) {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{
+				Error:   dto.ErrMsgDeploymentNotFound,
+				Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Error:   "Failed to update deployment request",
+			Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.SuccessResponse{
+		Message: dto.MsgDeploymentRequestUpdated,
+		Data:    deploymentRequest,
+	})
+}
+
+// DeleteDeploymentRequest handles DELETE /api/v1/deployments/requests/:id
+// @Summary      Delete a deployment request
+// @Description  Delete an existing deployment request
+// @Tags         DeploymentRequestService
+// @Accept       json
+// @Produce      json
+// @Param        X-Request-ID  header    string  true  "Request ID for idempotency"
+// @Param        X-User-ID     header    string  true  "User ID for authentication"
+// @Param        id            path      string  true  "Deployment identifier"
+// @Success      200           {object}  dto.SuccessResponse{data=dto.DeploymentRequestResponse}
+// @Failure      400           {object}  dto.ErrorResponse  "Invalid request"
+// @Failure      401           {object}  dto.ErrorResponse  "Missing or invalid X-User-ID"
+// @Failure      404           {object}  dto.ErrorResponse  "Deployment not found"
+// @Router       /deployments/requests/{id} [delete]
+// RequestID and UserID are available in context from previous middlewares
+func (h *DeploymentRequestHandler) DeleteDeploymentRequest(c *gin.Context) {
+	// Extract request ID from context (set by RequestIDMiddleware)
+	requestID, err := middleware.GetRequestIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error:   dto.ErrMsgRequestIDNotFound,
+			Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
+		})
+		return
+	}
+
+	// Extract user ID from context (set by AuthReadMiddleware)
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Error:   dto.ErrMsgUserIDNotFound,
+			Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
+		})
+		return
+	}
+
+	// Extract identifier from path parameter
+	identifier := c.Param(dto.ParamID)
+	if identifier == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error:   dto.ErrMsgIdentifierRequired,
+			Details: map[string]interface{}{dto.ResponseKeyParam: dto.ParamID},
+		})
+		return
+	}
+
+	// Call service to delete deployment request
+	deploymentRequest, err := h.deploymentRequest.DeleteDeploymentRequest(
+		c.Request.Context(),
+		identifier,
+		requestID,
+		userID.String(),
+	)
+	if err != nil {
+		if errors.Is(err, dto.ErrDeploymentNotFound) {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{
+				Error:   dto.ErrMsgDeploymentNotFound,
+				Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Error:   "Failed to delete deployment request",
+			Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.SuccessResponse{
+		Message: dto.MsgDeploymentRequestDeleted,
 		Data:    deploymentRequest,
 	})
 }
