@@ -13,6 +13,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
@@ -232,4 +233,145 @@ func (dm *DeploymentManager) buildHTMLConfigMap(identifier, namespace, indexHTML
 			dto.ConfigMapIndexHTML: indexHTML,
 		},
 	}
+}
+
+// Update updates an existing deployment in Kubernetes based on the deployment request metadata.
+// It applies changes to replica count, resource limits, and doc_html (ConfigMap) if provided.
+func (dm *DeploymentManager) Update(ctx context.Context, req *models.DeploymentRequest, existingDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
+	// Make a copy to avoid modifying the original
+	updatedDeployment := existingDeployment.DeepCopy()
+
+	// Extract metadata from request
+	var updateMetadata dto.UpdateDeploymentRequestMetadata
+	if req.Metadata != nil {
+		decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			Result:  &updateMetadata,
+			TagName: dto.MapstructureTagJSON,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create decoder: %w", err)
+		}
+		if err := decoder.Decode(req.Metadata); err != nil {
+			return nil, fmt.Errorf("failed to decode update metadata: %w", err)
+		}
+	}
+
+	// Apply updates based on provided metadata fields
+	if updateMetadata.ReplicaCount != nil {
+		if err := dm.updateReplicaCount(updatedDeployment, *updateMetadata.ReplicaCount); err != nil {
+			return nil, fmt.Errorf("update replica count: %w", err)
+		}
+	}
+
+	if updateMetadata.ResourceLimit != nil {
+		if err := dm.updateResourceLimits(updatedDeployment, updateMetadata.ResourceLimit); err != nil {
+			return nil, fmt.Errorf("update resource limits: %w", err)
+		}
+	}
+
+	if updateMetadata.DocHTML != nil {
+		if err := dm.updateConfigMap(ctx, req, *updateMetadata.DocHTML); err != nil {
+			return nil, fmt.Errorf("update configmap: %w", err)
+		}
+	}
+
+	// Update the deployment in Kubernetes
+	updated, err := dm.clientset.AppsV1().Deployments(req.Namespace).Update(ctx, updatedDeployment, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("update deployment in cluster: %w", err)
+	}
+
+	return updated, nil
+}
+
+// updateReplicaCount updates the replica count of a deployment.
+func (dm *DeploymentManager) updateReplicaCount(deployment *appsv1.Deployment, replicaCount int) error {
+	replicas := int32(replicaCount)
+	deployment.Spec.Replicas = &replicas
+	return nil
+}
+
+// updateResourceLimits updates the resource limits and requests of the first container in a deployment.
+func (dm *DeploymentManager) updateResourceLimits(deployment *appsv1.Deployment, resourceLimit *dto.ResourceMetadata) error {
+	if len(deployment.Spec.Template.Spec.Containers) == 0 {
+		return fmt.Errorf("deployment has no containers")
+	}
+
+	container := &deployment.Spec.Template.Spec.Containers[0]
+	
+	// Parse CPU and memory for requests
+	requestCPU, err := resource.ParseQuantity(resourceLimit.Request.CPU)
+	if err != nil {
+		return fmt.Errorf("invalid CPU request value: %w", err)
+	}
+	requestMemory, err := resource.ParseQuantity(resourceLimit.Request.Memory)
+	if err != nil {
+		return fmt.Errorf("invalid memory request value: %w", err)
+	}
+
+	// Parse CPU and memory for limits
+	limitCPU, err := resource.ParseQuantity(resourceLimit.Limit.CPU)
+	if err != nil {
+		return fmt.Errorf("invalid CPU limit value: %w", err)
+	}
+	limitMemory, err := resource.ParseQuantity(resourceLimit.Limit.Memory)
+	if err != nil {
+		return fmt.Errorf("invalid memory limit value: %w", err)
+	}
+
+	container.Resources = corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    requestCPU,
+			corev1.ResourceMemory: requestMemory,
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    limitCPU,
+			corev1.ResourceMemory: limitMemory,
+		},
+	}
+
+	return nil
+}
+
+// updateConfigMap updates or creates a ConfigMap with HTML content for the deployment.
+func (dm *DeploymentManager) updateConfigMap(ctx context.Context, req *models.DeploymentRequest, docHTML string) error {
+	if docHTML == "" {
+		// Empty doc_html means no update needed
+		return nil
+	}
+
+	configMapName := req.Identifier + dto.ConfigMapHTMLSuffix
+	configMap := dm.buildHTMLConfigMap(req.Identifier, req.Namespace, docHTML)
+
+	// Try to update existing ConfigMap, or create if it doesn't exist
+	_, err := dm.clientset.CoreV1().ConfigMaps(req.Namespace).Update(ctx, configMap, metav1.UpdateOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Create if it doesn't exist
+			_, err = dm.clientset.CoreV1().ConfigMaps(req.Namespace).Create(ctx, configMap, metav1.CreateOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to create configmap %s: %w", configMapName, err)
+			}
+		} else {
+			return fmt.Errorf("failed to update configmap %s: %w", configMapName, err)
+		}
+	}
+
+	return nil
+}
+
+// Delete deletes a deployment from Kubernetes by namespace and name.
+func (dm *DeploymentManager) Delete(ctx context.Context, namespace, name string) error {
+	deletePolicy := metav1.DeletePropagationForeground
+	err := dm.clientset.AppsV1().Deployments(namespace).Delete(ctx, name, metav1.DeleteOptions{
+		PropagationPolicy: &deletePolicy,
+	})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Deployment already deleted, consider it success
+			return nil
+		}
+		return fmt.Errorf("delete deployment from cluster: %w", err)
+	}
+	return nil
 }

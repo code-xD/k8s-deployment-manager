@@ -2,7 +2,6 @@ package workerService
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/code-xd/k8s-deployment-manager/pkg/consumer"
@@ -62,9 +61,9 @@ func (s *DeploymentRequestService) ProcessDeploymentRequest(ctx context.Context,
 	case models.DeploymentRequestTypeCreate:
 		return s.processCreate(ctx, req, lastRetryAttempt)
 	case models.DeploymentRequestTypeUpdate:
-		return errors.New("UPDATE request type not yet implemented")
+		return s.processUpdate(ctx, req, lastRetryAttempt)
 	case models.DeploymentRequestTypeDelete:
-		return errors.New("DELETE request type not yet implemented")
+		return s.processDelete(ctx, req, lastRetryAttempt)
 	default:
 		return fmt.Errorf("unknown request type: %s", req.RequestType)
 	}
@@ -81,6 +80,67 @@ func (s *DeploymentRequestService) processCreate(ctx context.Context, req *model
 			}
 		}
 		return fmt.Errorf("create deployment: %w", err)
+	}
+
+	if err := s.deploymentRequestRepo.UpdateStatus(ctx, req.ID, models.DeploymentRequestStatusSuccess, nil); err != nil {
+		return fmt.Errorf("update status to SUCCESS: %w", err)
+	}
+	return nil
+}
+
+// processUpdate invokes k8s deployment update and updates the deployment request status.
+func (s *DeploymentRequestService) processUpdate(ctx context.Context, req *models.DeploymentRequest, lastRetryAttempt bool) error {
+	// Get existing deployment from K8s
+	existingDeployment, found, err := s.k8sDeploymentManager.GetOptional(ctx, req.Namespace, req.Name)
+	if err != nil {
+		if lastRetryAttempt {
+			errMsg := fmt.Sprintf("failed to get existing deployment: %v", err)
+			if updateErr := s.deploymentRequestRepo.UpdateStatus(ctx, req.ID, models.DeploymentRequestStatusFailure, &errMsg); updateErr != nil {
+				s.logger.Error("Failed to mark deployment request as FAILURE", zap.Error(updateErr))
+			}
+		}
+		return fmt.Errorf("get existing deployment: %w", err)
+	}
+	if !found {
+		if lastRetryAttempt {
+			errMsg := fmt.Sprintf("deployment not found in Kubernetes: namespace=%s, name=%s", req.Namespace, req.Name)
+			if updateErr := s.deploymentRequestRepo.UpdateStatus(ctx, req.ID, models.DeploymentRequestStatusFailure, &errMsg); updateErr != nil {
+				s.logger.Error("Failed to mark deployment request as FAILURE", zap.Error(updateErr))
+			}
+		}
+		return fmt.Errorf("deployment not found in Kubernetes: namespace=%s, name=%s", req.Namespace, req.Name)
+	}
+
+	// Update the deployment in K8s
+	_, err = s.k8sDeploymentManager.Update(ctx, req, existingDeployment)
+	if err != nil {
+		if lastRetryAttempt {
+			errMsg := err.Error()
+			if updateErr := s.deploymentRequestRepo.UpdateStatus(ctx, req.ID, models.DeploymentRequestStatusFailure, &errMsg); updateErr != nil {
+				s.logger.Error("Failed to mark deployment request as FAILURE", zap.Error(updateErr))
+			}
+		}
+		return fmt.Errorf("update deployment: %w", err)
+	}
+
+	if err := s.deploymentRequestRepo.UpdateStatus(ctx, req.ID, models.DeploymentRequestStatusSuccess, nil); err != nil {
+		return fmt.Errorf("update status to SUCCESS: %w", err)
+	}
+	return nil
+}
+
+// processDelete invokes k8s deployment deletion and updates the deployment request status.
+func (s *DeploymentRequestService) processDelete(ctx context.Context, req *models.DeploymentRequest, lastRetryAttempt bool) error {
+	// Delete the deployment from K8s
+	err := s.k8sDeploymentManager.Delete(ctx, req.Namespace, req.Name)
+	if err != nil {
+		if lastRetryAttempt {
+			errMsg := err.Error()
+			if updateErr := s.deploymentRequestRepo.UpdateStatus(ctx, req.ID, models.DeploymentRequestStatusFailure, &errMsg); updateErr != nil {
+				s.logger.Error("Failed to mark deployment request as FAILURE", zap.Error(updateErr))
+			}
+		}
+		return fmt.Errorf("delete deployment: %w", err)
 	}
 
 	if err := s.deploymentRequestRepo.UpdateStatus(ctx, req.ID, models.DeploymentRequestStatusSuccess, nil); err != nil {
