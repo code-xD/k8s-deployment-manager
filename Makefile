@@ -43,6 +43,10 @@ docker-build-watcher:
 	@echo "Building watcher Docker image..."
 	@docker build -f docker/watcher.dockerfile -t k8s-deployment-manager-watcher:latest .
 
+.PHONY: docker-build-all
+docker-build-all: docker-build docker-build-worker docker-build-watcher
+	@echo "All Docker images built successfully!"
+
 .PHONY: docker-push
 docker-push:
 	@echo "Pushing Docker image..."
@@ -58,20 +62,37 @@ docker-push-watcher:
 	@echo "Pushing watcher Docker image..."
 	@docker push k8s-deployment-manager-watcher:latest
 
+.PHONY: k8s-namespace
+k8s-namespace:
+	@echo "Creating namespace if it doesn't exist..."
+	@kubectl create namespace dep-manager --dry-run=client -o yaml | kubectl apply -f -
+
 .PHONY: k8s-deploy
-k8s-deploy:
+k8s-deploy: k8s-namespace
 	@echo "Deploying to Kubernetes..."
 	@kubectl apply -f k8s/api/ -n dep-manager
 
 .PHONY: k8s-deploy-worker
-k8s-deploy-worker:
+k8s-deploy-worker: k8s-namespace
 	@echo "Deploying worker to Kubernetes..."
+	@kubectl apply -f k8s/worker/clusterrole.yaml
+	@kubectl apply -f k8s/worker/clusterrolebinding.yaml
 	@kubectl apply -f k8s/worker/ -n dep-manager
 
 .PHONY: k8s-deploy-watcher
-k8s-deploy-watcher:
+k8s-deploy-watcher: k8s-namespace
 	@echo "Deploying watcher to Kubernetes..."
+	@kubectl apply -f k8s/watcher/clusterrole.yaml
+	@kubectl apply -f k8s/watcher/clusterrolebinding.yaml
 	@kubectl apply -f k8s/watcher/ -n dep-manager
+
+.PHONY: k8s-deploy-all
+k8s-deploy-all: k8s-deploy k8s-deploy-worker k8s-deploy-watcher
+	@echo "All components deployed to Kubernetes successfully!"
+
+.PHONY: build-and-deploy
+build-and-deploy: docker-build-all k8s-deploy-all
+	@echo "Build and deployment completed successfully!"
 
 .PHONY: k8s-delete
 k8s-delete:

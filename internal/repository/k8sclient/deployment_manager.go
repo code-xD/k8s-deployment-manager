@@ -97,12 +97,6 @@ func (dm *DeploymentManager) Create(ctx context.Context, req *models.DeploymentR
 	}
 
 	indexHTML := dm.extractIndexHTML(req.Metadata)
-	if indexHTML != "" {
-		configMap := dm.buildHTMLConfigMap(req.Identifier, req.Namespace, indexHTML)
-		if _, err := dm.clientset.CoreV1().ConfigMaps(req.Namespace).Create(ctx, configMap, metav1.CreateOptions{}); err != nil {
-			return nil, fmt.Errorf("create configmap for %s: %w", dto.ConfigMapIndexHTML, err)
-		}
-	}
 
 	data := dto.CreateTemplateData{
 		Name:                req.Name,
@@ -128,6 +122,13 @@ func (dm *DeploymentManager) Create(ctx context.Context, req *models.DeploymentR
 
 	if err := dm.getOrCreateNamespace(ctx, req.Namespace); err != nil {
 		return nil, fmt.Errorf("failed to get or create namespace: %w", err)
+	}
+
+	if indexHTML != "" {
+		configMap := dm.buildHTMLConfigMap(req.Identifier, req.Namespace, indexHTML)
+		if _, err := dm.clientset.CoreV1().ConfigMaps(req.Namespace).Create(ctx, configMap, metav1.CreateOptions{}); err != nil {
+			return nil, fmt.Errorf("create configmap for %s: %w", dto.ConfigMapIndexHTML, err)
+		}
 	}
 
 	created, err := dm.clientset.AppsV1().Deployments(req.Namespace).Create(ctx, deployment, metav1.CreateOptions{})
@@ -298,7 +299,7 @@ func (dm *DeploymentManager) updateResourceLimits(deployment *appsv1.Deployment,
 	}
 
 	container := &deployment.Spec.Template.Spec.Containers[0]
-	
+
 	// Parse CPU and memory for requests
 	requestCPU, err := resource.ParseQuantity(resourceLimit.Request.CPU)
 	if err != nil {

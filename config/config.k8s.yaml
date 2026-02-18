@@ -1,0 +1,40 @@
+server:
+  port: "8080"
+  shutdown_timeout: 30s
+
+database:
+  host: "postgres"  # Kubernetes service name
+  port: "5432"      # Standard PostgreSQL port
+  user: "k8s_admin"      # From postgres-secret
+  password: "SecureP@ssword123"      # Should be injected via secret/env var in production
+  db_name: "backend"  # From postgres-secret
+
+# k8s: in_cluster=true uses in-cluster config (service account) when running inside Kubernetes
+k8s:
+  in_cluster: true  # Set to true for running inside Kubernetes cluster
+  # kubeconfig: ""  # Not used when in_cluster=true
+  manager_tag: "k8s-deployment-manager"  # value for managed-by label on created resources (required)
+
+nats:
+  url: "nats://nats:4222"  # Kubernetes service name
+  producer:
+    stream_name: "DEPLOYMENTS"
+    deployment_request_channel: "deployment.requests"
+    deployment_update_channel: "deployment.updates"
+
+consumer:
+  shutdown_timeout: 30s
+  deployment_request_task:
+    channel: "deployment.requests"
+    queue_group: "deployment-workers"
+    # task_timeout: 1m    # optional
+    # retry_count: 1      # optional
+  deployment_update_task:
+    channel: "deployment.updates"
+    queue_group: "deployment-update-workers"
+    # task_timeout: 1m    # optional
+    # retry_count: 1      # optional
+
+watcher:
+  resync_period: 10m
+  task_timeout: 30s

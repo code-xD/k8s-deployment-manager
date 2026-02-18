@@ -1,0 +1,19 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: worker-role
+  labels:
+    app: worker
+rules:
+  # Permissions needed for DeploymentManager to create/manage deployments
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["create", "get", "update", "delete", "list", "watch"]
+  # Permissions needed for ConfigMap creation/updates (for HTML content)
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create", "get", "update", "patch"]
+  # Permissions needed to create namespaces if they don't exist
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "create"]
