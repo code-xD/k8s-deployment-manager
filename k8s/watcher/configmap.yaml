@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: watcher-config
+  labels:
+    app: watcher
+data:
+  app_env: "dev"
