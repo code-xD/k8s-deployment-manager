@@ -18,7 +18,7 @@ func RequestIDMiddleware(
 
 		if requestID == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "X-Request-ID header is required",
+				dto.ResponseKeyError: dto.ErrMsgRequestIDHeaderRequired,
 			})
 			c.Abort()
 			return
@@ -26,7 +26,7 @@ func RequestIDMiddleware(
 		_, found, err := deploymentRequestRepo.GetByRequestID(c.Request.Context(), requestID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to check existing deployment request",
+				dto.ResponseKeyError: dto.ErrMsgFailedToCheckDeploymentRequest,
 			})
 			c.Abort()
 			return
@@ -34,7 +34,7 @@ func RequestIDMiddleware(
 
 		if found {
 			c.JSON(http.StatusConflict, gin.H{
-				"error": "Deployment request with same request ID already exists",
+				dto.ResponseKeyError: dto.ErrMsgDeploymentRequestSameRequestIDExists,
 			})
 			c.Abort()
 			return

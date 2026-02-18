@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
@@ -24,7 +23,7 @@ func AuthReadMiddleware(
 		if userExternalID == "" {
 			logger.Warn("X-User-ID header is missing")
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "X-User-ID header is required",
+				dto.ResponseKeyError: dto.ErrMsgUserIDHeaderRequired,
 			})
 			c.Abort()
 			return
@@ -35,7 +34,7 @@ func AuthReadMiddleware(
 		if err != nil {
 			logger.Warn("User not found", zap.String("external_id", userExternalID), zap.Error(err))
 			c.JSON(http.StatusForbidden, gin.H{
-				"error": "User not found",
+				dto.ResponseKeyError: dto.ErrMsgUserNotFoundResponse,
 			})
 			c.Abort()
 			return
@@ -60,7 +59,7 @@ func AuthReadWriteMiddleware(
 		if userExternalID == "" {
 			logger.Warn("X-User-ID header is missing")
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "X-User-ID header is required",
+				dto.ResponseKeyError: dto.ErrMsgUserIDHeaderRequired,
 			})
 			c.Abort()
 			return
@@ -78,7 +77,7 @@ func AuthReadWriteMiddleware(
 			if err := userRepo.Create(c.Request.Context(), user); err != nil {
 				logger.Error("Failed to create user", zap.String("external_id", userExternalID), zap.Error(err))
 				c.JSON(http.StatusInternalServerError, gin.H{
-					"error": "Failed to create user",
+					dto.ResponseKeyError: dto.ErrMsgFailedToCreateUser,
 				})
 				c.Abort()
 				return
@@ -113,12 +112,12 @@ func GetUserIDFromContext(c *gin.Context) (uuid.UUID, error) {
 func GetRequestIDFromContext(c *gin.Context) (string, error) {
 	requestID, exists := c.Get(dto.RequestIDKey)
 	if !exists {
-		return "", errors.New("request ID not found in context")
+		return "", dto.ErrRequestIDNotFoundInContext
 	}
 
 	id, ok := requestID.(string)
 	if !ok {
-		return "", errors.New("invalid request ID type in context")
+		return "", dto.ErrInvalidRequestIDTypeInContext
 	}
 
 	return id, nil

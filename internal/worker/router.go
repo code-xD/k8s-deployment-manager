@@ -32,7 +32,7 @@ func registerDeploymentRequestRoutes(
 	channel := taskCfg.Channel
 	queueGroup := taskCfg.QueueGroup
 	if queueGroup == "" {
-		queueGroup = "deployment-workers"
+		queueGroup = dto.QueueGroupDeploymentWorkers
 	}
 
 	opts := []consumer.OptionFunc{}

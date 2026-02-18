@@ -48,7 +48,7 @@ func NewDeploymentManager(templatesBasePath string, cfg *dto.K8sConfig, logger *
 	}
 
 	if cfg == nil || cfg.ManagerTag == "" {
-		return nil, fmt.Errorf("k8s config manager-tag is required")
+		return nil, fmt.Errorf("%s", dto.ErrMsgK8sManagerTagRequired)
 	}
 
 	return &DeploymentManager{
@@ -78,7 +78,7 @@ func buildRestConfig(cfg *dto.K8sConfig) (*rest.Config, error) {
 // When metadata contains inline HTML (keys: "html", "content", or "body"), a ConfigMap is created and mounted into the nginx container.
 func (dm *DeploymentManager) Create(ctx context.Context, req *models.DeploymentRequest) (*appsv1.Deployment, error) {
 	renderer := utils.NewTemplateRenderer[dto.CreateTemplateData](dm.templatesBasePath, req.Image)
-	if renderer.TemplateName() != "nginx" {
+	if renderer.TemplateName() != dto.TemplateNginx {
 		return nil, fmt.Errorf("unsupported image: only nginx is supported, got %q", req.Image)
 	}
 
@@ -90,7 +90,7 @@ func (dm *DeploymentManager) Create(ctx context.Context, req *models.DeploymentR
 	if indexHTML != "" {
 		configMap := dm.buildHTMLConfigMap(req.Identifier, req.Namespace, indexHTML)
 		if _, err := dm.clientset.CoreV1().ConfigMaps(req.Namespace).Create(ctx, configMap, metav1.CreateOptions{}); err != nil {
-			return nil, fmt.Errorf("create configmap for index.html: %w", err)
+			return nil, fmt.Errorf("create configmap for %s: %w", dto.ConfigMapIndexHTML, err)
 		}
 	}
 
@@ -174,7 +174,7 @@ func (dm *DeploymentManager) extractIndexHTML(metadata models.JSONB) string {
 	var deploymentMetadata dto.DeploymentMetadata
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		Result:  &deploymentMetadata,
-		TagName: "json",
+		TagName: dto.MapstructureTagJSON,
 	})
 	if err != nil {
 		dm.logger.Error("failed to decode deployment metadata", zap.Error(err))
@@ -194,11 +194,11 @@ func (dm *DeploymentManager) extractIndexHTML(metadata models.JSONB) string {
 func (dm *DeploymentManager) buildHTMLConfigMap(identifier, namespace, indexHTML string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      identifier + "-html",
+			Name:      identifier + dto.ConfigMapHTMLSuffix,
 			Namespace: namespace,
 		},
 		Data: map[string]string{
-			"index.html": indexHTML,
+			dto.ConfigMapIndexHTML: indexHTML,
 		},
 	}
 }

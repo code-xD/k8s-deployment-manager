@@ -22,7 +22,7 @@ func (h *HealthHandler) GetRoutes() []dto.RouteDefinition {
 	return []dto.RouteDefinition{
 		{
 			Method:  "GET",
-			Path:    "/api/v1/ping",
+			Path:    dto.PathPing,
 			Handler: middleware.NoBodyHandler(h.Ping),
 		},
 	}
@@ -38,6 +38,6 @@ func (h *HealthHandler) GetRoutes() []dto.RouteDefinition {
 // @Router       /api/v1/ping [get]
 func (h *HealthHandler) Ping(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"message": "pong",
+		dto.ResponseKeyMessage: dto.MessagePong,
 	})
 }

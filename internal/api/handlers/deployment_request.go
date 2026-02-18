@@ -41,7 +41,7 @@ func (h *DeploymentRequestHandler) GetRoutes() []dto.RouteDefinition {
 	return []dto.RouteDefinition{
 		{
 			Method: "GET",
-			Path:   "/api/v1/deployments/requests",
+			Path:   dto.PathDeploymentRequestsList,
 			Middlewares: []gin.HandlerFunc{
 				middleware.AuthReadMiddleware(
 					h.userRepo,
@@ -52,7 +52,7 @@ func (h *DeploymentRequestHandler) GetRoutes() []dto.RouteDefinition {
 		},
 		{
 			Method: "GET",
-			Path:   "/api/v1/deployment/requests/:id",
+			Path:   dto.PathDeploymentRequestByID,
 			Middlewares: []gin.HandlerFunc{
 				middleware.AuthReadMiddleware(
 					h.userRepo,
@@ -63,7 +63,7 @@ func (h *DeploymentRequestHandler) GetRoutes() []dto.RouteDefinition {
 		},
 		{
 			Method: "POST",
-			Path:   "/api/v1/deployments/create",
+			Path:   dto.PathDeploymentsCreate,
 			// Middlewares are applied in order: RequestID -> Auth -> Validation -> Handler
 			// ValidateRequest wraps the handler and provides validated request body
 			Middlewares: []gin.HandlerFunc{
@@ -98,8 +98,8 @@ func (h *DeploymentRequestHandler) ListDeploymentRequests(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error:   "User ID not found",
-			Details: map[string]interface{}{"error": err.Error()},
+			Error:   dto.ErrMsgUserIDNotFound,
+			Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
 		})
 		return
 	}
@@ -107,14 +107,14 @@ func (h *DeploymentRequestHandler) ListDeploymentRequests(c *gin.Context) {
 	requests, err := h.deploymentRequest.ListDeploymentRequests(c.Request.Context(), userID.String())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error:   "Failed to list deployment requests",
-			Details: map[string]interface{}{"error": err.Error()},
+			Error:   dto.ErrMsgFailedToListDeploymentRequests,
+			Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, dto.SuccessResponse{
-		Message: "Deployment requests retrieved successfully",
+		Message: dto.MsgDeploymentRequestsRetrieved,
 		Data:    requests,
 	})
 }
@@ -136,17 +136,17 @@ func (h *DeploymentRequestHandler) GetDeploymentRequest(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error:   "User ID not found",
-			Details: map[string]interface{}{"error": err.Error()},
+			Error:   dto.ErrMsgUserIDNotFound,
+			Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
 		})
 		return
 	}
 
-	requestID := c.Param("id")
+	requestID := c.Param(dto.ParamID)
 	if requestID == "" {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Request ID is required",
-			Details: map[string]interface{}{"param": "id"},
+			Error:   dto.ErrMsgRequestIDRequired,
+			Details: map[string]interface{}{dto.ResponseKeyParam: dto.ParamID},
 		})
 		return
 	}
@@ -155,20 +155,20 @@ func (h *DeploymentRequestHandler) GetDeploymentRequest(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, dto.ErrDeploymentRequestNotFound) {
 			c.JSON(http.StatusNotFound, dto.ErrorResponse{
-				Error:   "Deployment request not found",
-				Details: map[string]interface{}{"error": err.Error()},
+				Error:   dto.ErrMsgDeploymentRequestNotFound,
+				Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
 			})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error:   "Failed to get deployment request",
-			Details: map[string]interface{}{"error": err.Error()},
+			Error:   dto.ErrMsgFailedToGetDeploymentRequest,
+			Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, dto.SuccessResponse{
-		Message: "Deployment request retrieved successfully",
+		Message: dto.MsgDeploymentRequestRetrieved,
 		Data:    dr,
 	})
 }
@@ -191,8 +191,8 @@ func (h *DeploymentRequestHandler) CreateDeploymentRequest(c *gin.Context, req *
 	requestID, err := middleware.GetRequestIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "Request ID not found",
-			Details: map[string]interface{}{"error": err.Error()},
+			Error:   dto.ErrMsgRequestIDNotFound,
+			Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
 		})
 		return
 	}
@@ -201,8 +201,8 @@ func (h *DeploymentRequestHandler) CreateDeploymentRequest(c *gin.Context, req *
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Error:   "User ID not found",
-			Details: map[string]interface{}{"error": err.Error()},
+			Error:   dto.ErrMsgUserIDNotFound,
+			Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
 		})
 		return
 	}
@@ -216,23 +216,23 @@ func (h *DeploymentRequestHandler) CreateDeploymentRequest(c *gin.Context, req *
 	)
 	if err != nil {
 		// Check if it's a conflict error (deployment already exists)
-		if err.Error() != "" && strings.Contains(err.Error(), "already exists") {
+		if err.Error() != "" && strings.Contains(err.Error(), dto.StrAlreadyExists) {
 			c.JSON(http.StatusConflict, dto.ErrorResponse{
-				Error:   "Deployment already exists",
-				Details: map[string]interface{}{"error": err.Error()},
+				Error:   dto.ErrMsgDeploymentAlreadyExists,
+				Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
 			})
 			return
 		}
 
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error:   "Failed to create deployment request",
-			Details: map[string]interface{}{"error": err.Error()},
+			Error:   dto.ErrMsgFailedToCreateDeploymentRequest,
+			Details: map[string]interface{}{dto.ResponseKeyError: err.Error()},
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, dto.SuccessResponse{
-		Message: "Deployment request created successfully",
+		Message: dto.MsgDeploymentRequestCreated,
 		Data:    deploymentRequest,
 	})
 }
