@@ -9,6 +9,7 @@ import (
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto/models"
 	"github.com/code-xd/k8s-deployment-manager/pkg/utils"
 	"github.com/go-viper/mapstructure/v2"
+	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -23,12 +24,13 @@ import (
 type DeploymentManager struct {
 	templatesBasePath string
 	clientset         *kubernetes.Clientset
+	logger            *zap.Logger
 }
 
 // NewDeploymentManager creates a new DeploymentManager.
 // templatesBasePath is the directory containing the templates folder (e.g. project root or ".").
 // cfg controls whether to use in-cluster config or kubeconfig. If nil, in-cluster is used.
-func NewDeploymentManager(templatesBasePath string, cfg *dto.K8sConfig) (*DeploymentManager, error) {
+func NewDeploymentManager(templatesBasePath string, cfg *dto.K8sConfig, logger *zap.Logger) (*DeploymentManager, error) {
 	restConfig, err := buildRestConfig(cfg)
 	if err != nil {
 		return nil, err
@@ -47,6 +49,7 @@ func NewDeploymentManager(templatesBasePath string, cfg *dto.K8sConfig) (*Deploy
 	return &DeploymentManager{
 		templatesBasePath: basePath,
 		clientset:         clientset,
+		logger:            logger,
 	}, nil
 }
 
@@ -167,11 +170,13 @@ func (dm *DeploymentManager) extractIndexHTML(metadata models.JSONB) string {
 		TagName: "json",
 	})
 	if err != nil {
+		dm.logger.Error("failed to decode deployment metadata", zap.Error(err))
 		return ""
 	}
 
 	err = decoder.Decode(metadata)
 	if err != nil {
+		dm.logger.Error("failed to decode deployment metadata", zap.Error(err))
 		return ""
 	}
 

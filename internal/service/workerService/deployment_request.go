@@ -75,14 +75,15 @@ func (s *DeploymentRequestService) processCreate(ctx context.Context, req *model
 	_, err := s.k8sDeploymentManager.Create(ctx, req)
 	if err != nil {
 		if lastRetryAttempt {
-			if updateErr := s.deploymentRequestRepo.UpdateStatus(ctx, req.ID, models.DeploymentRequestStatusFailure); updateErr != nil {
+			errMsg := err.Error()
+			if updateErr := s.deploymentRequestRepo.UpdateStatus(ctx, req.ID, models.DeploymentRequestStatusFailure, &errMsg); updateErr != nil {
 				s.logger.Error("Failed to mark deployment request as FAILURE", zap.Error(updateErr))
 			}
 		}
 		return fmt.Errorf("create deployment: %w", err)
 	}
 
-	if err := s.deploymentRequestRepo.UpdateStatus(ctx, req.ID, models.DeploymentRequestStatusSuccess); err != nil {
+	if err := s.deploymentRequestRepo.UpdateStatus(ctx, req.ID, models.DeploymentRequestStatusSuccess, nil); err != nil {
 		return fmt.Errorf("update status to SUCCESS: %w", err)
 	}
 	return nil

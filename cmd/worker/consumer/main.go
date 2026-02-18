@@ -55,7 +55,7 @@ func main() {
 
 	// Initialize repositories
 	deploymentRequestRepo := postgres.NewDeploymentRequestRepository(db)
-	k8sDeploymentManager, err := k8sclient.NewDeploymentManager(".", &workerCfg.K8s)
+	k8sDeploymentManager, err := k8sclient.NewDeploymentManager(".", &workerCfg.K8s, log)
 	if err != nil {
 		log.Fatal("Failed to create k8s deployment manager", zap.Error(err))
 	}

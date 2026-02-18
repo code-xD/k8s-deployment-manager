@@ -3,11 +3,13 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/code-xd/k8s-deployment-manager/internal/database/query"
 	"github.com/code-xd/k8s-deployment-manager/internal/repository/postgres/common"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto/models"
 	portsdb "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/db"
+	"github.com/google/uuid"
 )
 
 // DeploymentRequestRepository implements the deployment request repository interface
@@ -61,7 +63,17 @@ func (r *DeploymentRequestRepository) GetByRequestID(ctx context.Context, reques
 	return nil, false, nil
 }
 
-// UpdateStatus updates the status of a deployment request by ID
-func (r *DeploymentRequestRepository) UpdateStatus(ctx context.Context, id interface{}, status models.DeploymentRequestStatus) error {
-	return r.db.WithContext(ctx).Model(&models.DeploymentRequest{}).Where("id = ?", id).Update("status", status).Error
+// UpdateStatus updates the status of a deployment request by ID.
+// failureReason is optional; when status is FAILURE it may be set. Uses Save to trigger BeforeUpdate hook for UpdatedOn.
+func (r *DeploymentRequestRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status models.DeploymentRequestStatus, failureReason *string) error {
+	now := time.Now()
+	updateFields := models.DeploymentRequest{
+		Status:        status,
+		FailureReason: failureReason,
+		Common:        models.Common{UpdatedOn: &now},
+	}
+
+	q := query.Use(r.db.DB).DeploymentRequest
+	_, err := q.WithContext(ctx).Where(q.ID.Eq(id)).Updates(updateFields)
+	return err
 }
