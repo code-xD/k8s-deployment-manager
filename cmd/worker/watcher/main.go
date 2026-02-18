@@ -18,6 +18,7 @@ import (
 func main() {
 	log := logger.New()
 	defer log.Sync()
+	dto.Log = log
 
 	cfg := config.NewConfigLoader[dto.WorkerConfig](
 		constants.DEFAULT_CONFIG_PATH,

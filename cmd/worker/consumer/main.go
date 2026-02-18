@@ -21,6 +21,7 @@ func main() {
 	// Initialize logger
 	log := logger.New()
 	defer log.Sync()
+	dto.Log = log
 
 	// Load config
 	cfg := config.NewConfigLoader[dto.WorkerConfig](
