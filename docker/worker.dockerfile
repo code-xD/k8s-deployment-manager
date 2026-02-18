@@ -26,5 +26,8 @@ COPY --from=builder /app/worker .
 # Copy config folder
 COPY --from=builder /app/config ./config
 
+# Copy templates folder (needed for DeploymentManager to create K8s deployments)
+COPY --from=builder /app/templates ./templates
+
 # Run the binary
 CMD ["./worker"]

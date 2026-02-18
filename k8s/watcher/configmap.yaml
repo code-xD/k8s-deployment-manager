@@ -5,4 +5,4 @@ metadata:
   labels:
     app: watcher
 data:
-  app_env: "dev"
+  app_env: "k8s"

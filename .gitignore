@@ -38,6 +38,7 @@ Thumbs.db
 # Config
 config/config.*.yaml
 !config/config.dev.yaml
+!config/config.k8s.yaml
 
 # Swagger generated docs
 swagger/
