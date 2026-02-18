@@ -63,6 +63,19 @@ func (r *DeploymentRequestRepository) GetByRequestID(ctx context.Context, reques
 	return nil, false, nil
 }
 
+// ListByUserID retrieves all deployment requests for a user, ordered by creation (newest first)
+func (r *DeploymentRequestRepository) ListByUserID(ctx context.Context, userID uuid.UUID) ([]*models.DeploymentRequest, error) {
+	q := query.Use(r.db.DB)
+	deployments, err := q.DeploymentRequest.WithContext(ctx).
+		Where(q.DeploymentRequest.UserID.Eq(userID)).
+		Order(q.DeploymentRequest.CreatedOn.Desc()).
+		Find()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list deployment requests: %w", err)
+	}
+	return deployments, nil
+}
+
 // UpdateStatus updates the status of a deployment request by ID.
 // failureReason is optional; when status is FAILURE it may be set. Uses Save to trigger BeforeUpdate hook for UpdatedOn.
 func (r *DeploymentRequestRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status models.DeploymentRequestStatus, failureReason *string) error {

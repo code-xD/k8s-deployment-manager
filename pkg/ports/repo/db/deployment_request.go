@@ -12,5 +12,6 @@ type DeploymentRequest interface {
 	Create(ctx context.Context, deployment *models.DeploymentRequest) error
 	GetByIdentifier(ctx context.Context, identifier string) (*models.DeploymentRequest, error)
 	GetByRequestID(ctx context.Context, requestID string) (*models.DeploymentRequest, bool, error)
+	ListByUserID(ctx context.Context, userID uuid.UUID) ([]*models.DeploymentRequest, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status models.DeploymentRequestStatus, failureReason *string) error
 }

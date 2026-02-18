@@ -39,6 +39,17 @@ func NewDeploymentRequestHandler(
 func (h *DeploymentRequestHandler) GetRoutes() []dto.RouteDefinition {
 	return []dto.RouteDefinition{
 		{
+			Method: "GET",
+			Path:   "/api/v1/deployments/requests",
+			Middlewares: []gin.HandlerFunc{
+				middleware.AuthReadMiddleware(
+					h.userRepo,
+					h.log,
+				),
+			},
+			Handler: middleware.NoBodyHandler(h.ListDeploymentRequests),
+		},
+		{
 			Method: "POST",
 			Path:   "/api/v1/deployments/create",
 			// Middlewares are applied in order: RequestID -> Auth -> Validation -> Handler
@@ -58,6 +69,42 @@ func (h *DeploymentRequestHandler) GetRoutes() []dto.RouteDefinition {
 			),
 		},
 	}
+}
+
+// ListDeploymentRequests handles GET /api/v1/deployments/requests
+// @Summary      List deployment requests for the authenticated user
+// @Description  Returns all deployment requests for the user identified by X-User-ID header
+// @Tags         deployments
+// @Accept       json
+// @Produce      json
+// @Param        X-User-ID  header    string  true  "User ID for authentication"
+// @Success      200        {object}  dto.SuccessResponse{data=[]dto.DeploymentRequestResponse}
+// @Failure      401        {object}  dto.ErrorResponse  "Missing or invalid X-User-ID"
+// @Failure      403        {object}  dto.ErrorResponse  "User not found"
+// @Router       /deployments/requests [get]
+func (h *DeploymentRequestHandler) ListDeploymentRequests(c *gin.Context) {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Error:   "User ID not found",
+			Details: map[string]interface{}{"error": err.Error()},
+		})
+		return
+	}
+
+	requests, err := h.deploymentRequest.ListDeploymentRequests(c.Request.Context(), userID.String())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Error:   "Failed to list deployment requests",
+			Details: map[string]interface{}{"error": err.Error()},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.SuccessResponse{
+		Message: "Deployment requests retrieved successfully",
+		Data:    requests,
+	})
 }
 
 // CreateDeploymentRequest handles POST /api/v1/deployments/create

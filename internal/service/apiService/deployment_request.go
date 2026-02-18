@@ -127,3 +127,32 @@ func (s *DeploymentRequestService) CreateDeploymentRequest(
 		Metadata:    map[string]interface{}(deploymentRequest.Metadata),
 	}, nil
 }
+
+// ListDeploymentRequests returns all deployment requests for the given user
+func (s *DeploymentRequestService) ListDeploymentRequests(ctx context.Context, userID string) ([]*dto.DeploymentRequestResponse, error) {
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	requests, err := s.repo.ListByUserID(ctx, userUUID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list deployment requests: %w", err)
+	}
+
+	result := make([]*dto.DeploymentRequestResponse, 0, len(requests))
+	for _, r := range requests {
+		result = append(result, &dto.DeploymentRequestResponse{
+			ID:          r.ID,
+			RequestID:   r.RequestID,
+			Identifier:  r.Identifier,
+			Name:        r.Name,
+			Namespace:   r.Namespace,
+			Image:       r.Image,
+			Status:      string(r.Status),
+			RequestType: string(r.RequestType),
+			Metadata:    map[string]interface{}(r.Metadata),
+		})
+	}
+	return result, nil
+}
