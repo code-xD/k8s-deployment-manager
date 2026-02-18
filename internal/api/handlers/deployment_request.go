@@ -86,7 +86,7 @@ func (h *DeploymentRequestHandler) GetRoutes() []dto.RouteDefinition {
 // ListDeploymentRequests handles GET /api/v1/deployments/requests
 // @Summary      List deployment requests for the authenticated user
 // @Description  Returns all deployment requests for the user identified by X-User-ID header
-// @Tags         Deployment Requests
+// @Tags         DeploymentRequestService
 // @Accept       json
 // @Produce      json
 // @Param        X-User-ID  header    string  true  "User ID for authentication"
@@ -122,7 +122,7 @@ func (h *DeploymentRequestHandler) ListDeploymentRequests(c *gin.Context) {
 // GetDeploymentRequest handles GET /api/v1/deployment/requests/:id
 // @Summary      Get a deployment request by request ID
 // @Description  Returns the full deployment request including metadata for the given request_id. Only returns if owned by the authenticated user.
-// @Tags         Deployment Requests
+// @Tags         DeploymentRequestService
 // @Accept       json
 // @Produce      json
 // @Param        X-User-ID  header    string  true   "User ID for authentication"
@@ -131,7 +131,7 @@ func (h *DeploymentRequestHandler) ListDeploymentRequests(c *gin.Context) {
 // @Failure      401        {object}  dto.ErrorResponse  "Missing or invalid X-User-ID"
 // @Failure      403        {object}  dto.ErrorResponse  "User not found"
 // @Failure      404        {object}  dto.ErrorResponse  "Deployment request not found"
-// @Router       /deployment/requests/{id} [get]
+// @Router       /deployments/requests/{id} [get]
 func (h *DeploymentRequestHandler) GetDeploymentRequest(c *gin.Context) {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -173,17 +173,17 @@ func (h *DeploymentRequestHandler) GetDeploymentRequest(c *gin.Context) {
 	})
 }
 
-// CreateDeploymentRequest handles POST /api/v1/deployments/create
+// CreateDeploymentRequest handles POST /api/v1/deployments/requests/create
 // @Summary      Create a deployment request
 // @Description  Create a new deployment request with metadata
-// @Tags         Deployment
+// @Tags         DeploymentRequestService
 // @Accept       json
 // @Produce      json
 // @Param        X-Request-ID  header    string                              true  "Request ID for idempotency"
 // @Param        X-User-ID     header    string                              true  "User ID for authentication"
 // @Param        request       body      dto.CreateDeploymentRequestWithMetadata  true  "Deployment request details"
 // @Success      201           {object}  dto.SuccessResponse{data=dto.DeploymentRequestResponse}
-// @Router       /deployments/create [post]
+// @Router       /deployments/requests/create [post]
 // Request body is validated and provided by ValidateRequest middleware
 // RequestID and UserID are available in context from previous middlewares
 func (h *DeploymentRequestHandler) CreateDeploymentRequest(c *gin.Context, req *dto.CreateDeploymentRequestWithMetadata) {

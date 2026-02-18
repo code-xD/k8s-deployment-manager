@@ -89,10 +89,17 @@ func main() {
 		dto.Log,
 	)
 
+	// Initialize deployment service
+	deployment := apiService.NewDeploymentService(
+		deploymentRepo,
+		dto.Log,
+	)
+
 	// Setup router with injected service dependencies (as interface from pkg/ports/service/apiService)
 	router := api.SetupRouter(
 		dto.Log,
 		deploymentRequest,
+		deployment,
 		userRepo,
 		deploymentRequestRepo,
 	)

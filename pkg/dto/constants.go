@@ -12,10 +12,12 @@ const (
 
 // API path constants
 const (
-	PathPing                    = "/api/v1/ping"
-	PathDeploymentRequestsList  = "/api/v1/deployments/requests"
-	PathDeploymentRequestByID  = "/api/v1/deployment/requests/:id"
-	PathDeploymentsCreate       = "/api/v1/deployments/create"
+	PathPing                   = "/api/v1/ping"
+	PathDeploymentRequestsList = "/api/v1/deployments/requests"
+	PathDeploymentRequestByID  = "/api/v1/deployments/requests/:id"
+	PathDeploymentsCreate      = "/api/v1/deployments/requests/create"
+	PathDeploymentsList        = "/api/v1/deployments"
+	PathDeploymentByID         = "/api/v1/deployments/:id"
 )
 
 // API response message constants (user-facing)
@@ -23,23 +25,29 @@ const (
 	MessagePong = "pong"
 
 	MsgDeploymentRequestsRetrieved = "Deployment requests retrieved successfully"
-	MsgDeploymentRequestRetrieved   = "Deployment request retrieved successfully"
-	MsgDeploymentRequestCreated     = "Deployment request created successfully"
+	MsgDeploymentRequestRetrieved  = "Deployment request retrieved successfully"
+	MsgDeploymentRequestCreated    = "Deployment request created successfully"
+	MsgDeploymentsRetrieved        = "Deployments retrieved successfully"
+	MsgDeploymentRetrieved         = "Deployment retrieved successfully"
 
-	ErrMsgUserIDNotFound              = "User ID not found"
-	ErrMsgRequestIDNotFound           = "Request ID not found"
-	ErrMsgRequestIDRequired           = "Request ID is required"
-	ErrMsgFailedToListDeploymentRequests = "Failed to list deployment requests"
-	ErrMsgDeploymentRequestNotFound   = "Deployment request not found"
-	ErrMsgFailedToGetDeploymentRequest = "Failed to get deployment request"
-	ErrMsgDeploymentAlreadyExists      = "Deployment already exists"
-	ErrMsgFailedToCreateDeploymentRequest = "Failed to create deployment request"
-	ErrMsgRequestIDHeaderRequired     = "X-Request-ID header is required"
-	ErrMsgFailedToCheckDeploymentRequest = "Failed to check existing deployment request"
+	ErrMsgUserIDNotFound                       = "User ID not found"
+	ErrMsgRequestIDNotFound                    = "Request ID not found"
+	ErrMsgRequestIDRequired                    = "Request ID is required"
+	ErrMsgFailedToListDeploymentRequests       = "Failed to list deployment requests"
+	ErrMsgDeploymentRequestNotFound            = "Deployment request not found"
+	ErrMsgFailedToGetDeploymentRequest         = "Failed to get deployment request"
+	ErrMsgDeploymentAlreadyExists              = "Deployment already exists"
+	ErrMsgFailedToCreateDeploymentRequest      = "Failed to create deployment request"
+	ErrMsgRequestIDHeaderRequired              = "X-Request-ID header is required"
+	ErrMsgFailedToCheckDeploymentRequest       = "Failed to check existing deployment request"
 	ErrMsgDeploymentRequestSameRequestIDExists = "Deployment request with same request ID already exists"
-	ErrMsgUserIDHeaderRequired = "X-User-ID header is required"
-	ErrMsgUserNotFoundResponse = "User not found"
-	ErrMsgFailedToCreateUser  = "Failed to create user"
+	ErrMsgUserIDHeaderRequired                 = "X-User-ID header is required"
+	ErrMsgUserNotFoundResponse                 = "User not found"
+	ErrMsgFailedToCreateUser                   = "Failed to create user"
+	ErrMsgFailedToListDeployments              = "Failed to list deployments"
+	ErrMsgDeploymentNotFound                   = "Deployment not found"
+	ErrMsgFailedToGetDeployment                = "Failed to get deployment"
+	ErrMsgIdentifierRequired                   = "Identifier is required"
 )
 
 // API response body keys
@@ -96,4 +104,6 @@ var (
 	ErrRequestIDNotFoundInContext = errors.New("request ID not found in context")
 	// ErrInvalidRequestIDTypeInContext is returned when request ID in context has wrong type
 	ErrInvalidRequestIDTypeInContext = errors.New("invalid request ID type in context")
+	// ErrDeploymentNotFound is returned when deployment is not found or not owned by user
+	ErrDeploymentNotFound = errors.New("deployment not found")
 )

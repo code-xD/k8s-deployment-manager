@@ -20,6 +20,7 @@ import (
 func SetupRouter(
 	log *zap.Logger,
 	deploymentRequest portsapi.DeploymentRequest,
+	deployment portsapi.Deployment,
 	userRepo portsdb.User,
 	deploymentRequestRepo portsdb.DeploymentRequest,
 ) *gin.Engine {
@@ -37,6 +38,7 @@ func SetupRouter(
 	initHandlers(
 		router,
 		deploymentRequest,
+		deployment,
 		userRepo,
 		deploymentRequestRepo,
 		log,
@@ -49,6 +51,7 @@ func SetupRouter(
 func initHandlers(
 	router *gin.Engine,
 	deploymentRequest portsapi.DeploymentRequest,
+	deployment portsapi.Deployment,
 	userRepo portsdb.User,
 	deploymentRequestRepo portsdb.DeploymentRequest,
 	log *zap.Logger,
@@ -56,6 +59,7 @@ func initHandlers(
 	// Get all handlers that implement the Handler interface with injected dependencies
 	allHandlers := getHandlers(
 		deploymentRequest,
+		deployment,
 		userRepo,
 		deploymentRequestRepo,
 		log,
@@ -94,6 +98,7 @@ func initHandlers(
 // Dependencies are injected via constructor functions
 func getHandlers(
 	deploymentRequest portsapi.DeploymentRequest,
+	deployment portsapi.Deployment,
 	userRepo portsdb.User,
 	deploymentRequestRepo portsdb.DeploymentRequest,
 	log *zap.Logger,
@@ -103,6 +108,11 @@ func getHandlers(
 			deploymentRequest,
 			userRepo,
 			deploymentRequestRepo,
+			log,
+		),
+		handlers.NewDeploymentHandler(
+			deployment,
+			userRepo,
 			log,
 		),
 		handlers.NewHealthHandler(),

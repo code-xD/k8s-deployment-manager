@@ -16,15 +16,6 @@ type SuccessResponse struct {
 	Data    interface{} `json:"data,omitempty"`
 }
 
-// DeploymentResponse represents a deployment response
-type DeploymentResponse struct {
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	Namespace string    `json:"namespace"`
-	Image     string    `json:"image"`
-	Replicas  int       `json:"replicas,omitempty"`
-	Status    string    `json:"status,omitempty"`
-}
 
 // DeploymentEvent represents a deployment event for NATS
 type DeploymentEvent struct {
@@ -67,4 +58,27 @@ type DeploymentRequestListResponse struct {
 	Status        string  `json:"status"`
 	RequestType   string  `json:"request_type"`
 	FailureReason *string `json:"failure_reason,omitempty"`
+}
+
+// DeploymentListResponse represents a deployment in list responses (limited fields)
+type DeploymentListResponse struct {
+	Identifier string `json:"identifier"`
+	CreatedAt  string `json:"created_at"`
+	UpdatedAt  string `json:"updated_at"`
+	Status     string `json:"status"`
+	Name       string `json:"name"`
+	Namespace  string `json:"namespace"`
+}
+
+// DeploymentResponse represents a full deployment response with all data including metadata
+type DeploymentResponse struct {
+	ID          uuid.UUID              `json:"id"`
+	Identifier  string                 `json:"identifier"`
+	Name        string                 `json:"name"`
+	Namespace   string                 `json:"namespace"`
+	Image       string                 `json:"image"`
+	Status      string                 `json:"status"`
+	CreatedAt   string                 `json:"created_at"`
+	UpdatedAt   string                 `json:"updated_at"`
+	Metadata    map[string]interface{} `json:"metadata"`
 }

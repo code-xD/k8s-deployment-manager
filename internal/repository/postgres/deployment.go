@@ -10,6 +10,7 @@ import (
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto"
 	"github.com/code-xd/k8s-deployment-manager/pkg/dto/models"
 	portsdb "github.com/code-xd/k8s-deployment-manager/pkg/ports/repo/db"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -57,6 +58,18 @@ func (r *DeploymentRepository) GetByIdentifier(ctx context.Context, identifier s
 		return nil, false, fmt.Errorf("failed to query deployment: %w", err)
 	}
 	return existing, true, nil
+}
+
+// ListByUserID retrieves all deployments for a given user ID
+func (r *DeploymentRepository) ListByUserID(ctx context.Context, userID uuid.UUID) ([]*models.Deployment, error) {
+	q := query.Use(r.db.DB)
+	deployments, err := q.Deployment.WithContext(ctx).
+		Where(q.Deployment.UserID.Eq(userID)).
+		Find()
+	if err != nil {
+		return nil, fmt.Errorf("failed to query deployments by user ID: %w", err)
+	}
+	return deployments, nil
 }
 
 // Update updates an existing deployment by ID (e.g. status and UpdatedOn).
