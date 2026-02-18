@@ -27,7 +27,9 @@ func NewWatcherService(
 }
 
 // PublishDeploymentUpdate publishes a deployment update message to NATS
-func (s *WatcherService) PublishDeploymentUpdate(ctx context.Context, identifier, eventType string) error {
+// It builds the identifier from namespace/name and publishes via the deployment update producer
+func (s *WatcherService) PublishDeploymentUpdate(ctx context.Context, namespace, name, eventType string) error {
+	identifier := namespace + "/" + name
 	if err := s.deploymentUpdate.Publish(identifier, eventType); err != nil {
 		return fmt.Errorf("publish deployment update: %w", err)
 	}

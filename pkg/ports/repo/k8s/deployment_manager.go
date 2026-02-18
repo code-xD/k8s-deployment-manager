@@ -10,4 +10,5 @@ import (
 // DeploymentManager defines the interface for Kubernetes deployment operations
 type DeploymentManager interface {
 	Create(ctx context.Context, req *models.DeploymentRequest) (*appsv1.Deployment, error)
+	Get(ctx context.Context, namespace, name string) (*appsv1.Deployment, error)
 }

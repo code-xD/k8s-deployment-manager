@@ -199,6 +199,15 @@ func (dm *DeploymentManager) extractIndexHTML(metadata models.JSONB) string {
 	return deploymentMetadata.DocHTML
 }
 
+// Get retrieves a deployment from Kubernetes by namespace and name
+func (dm *DeploymentManager) Get(ctx context.Context, namespace, name string) (*appsv1.Deployment, error) {
+	deployment, err := dm.clientset.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("get deployment from cluster: %w", err)
+	}
+	return deployment, nil
+}
+
 // buildHTMLConfigMap creates a ConfigMap with index.html content for nginx to serve.
 func (dm *DeploymentManager) buildHTMLConfigMap(identifier, namespace, indexHTML string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{

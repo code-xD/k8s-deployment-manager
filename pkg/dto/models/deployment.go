@@ -17,13 +17,14 @@ const (
 // Deployment represents a deployment
 type Deployment struct {
 	Common
-	Identifier string                 `gorm:"type:varchar(63);uniqueIndex;not null" json:"identifier"`
-	Name       string                 `gorm:"type:varchar(255)" json:"name"`
-	Namespace  string                 `gorm:"type:varchar(255)" json:"namespace"`
-	Image      string                 `gorm:"type:varchar(255)" json:"image"`
-	Status     DeploymentStatus        `gorm:"type:varchar(50);not null;index:idx_deployment_user_status" json:"status"`
-	UserID     uuid.UUID              `gorm:"type:uuid;not null;index:idx_deployment_user_status" json:"user_id"`
-	Metadata   JSONB                  `gorm:"type:jsonb" json:"metadata"`
+	Identifier     string          `gorm:"type:varchar(63);uniqueIndex;not null" json:"identifier"`
+	Name           string          `gorm:"type:varchar(255)" json:"name"`
+	Namespace      string          `gorm:"type:varchar(255)" json:"namespace"`
+	Image          string          `gorm:"type:varchar(255)" json:"image"`
+	Status         DeploymentStatus `gorm:"type:varchar(50);not null;index:idx_deployment_user_status" json:"status"`
+	UserID         uuid.UUID       `gorm:"type:uuid;not null;index:idx_deployment_user_status" json:"user_id"`
+	ResourceVersion string          `gorm:"type:varchar(255)" json:"resource_version"`
+	Metadata       JSONB           `gorm:"type:jsonb" json:"metadata"`
 	
 	// Foreign key relationship
 	User User `gorm:"foreignKey:UserID;references:ID" json:"user,omitempty"`

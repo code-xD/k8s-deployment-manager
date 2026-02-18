@@ -55,6 +55,7 @@ func main() {
 
 	// Initialize repositories
 	deploymentRequestRepo := postgres.NewDeploymentRequestRepository(db)
+	deploymentRepo := postgres.NewDeploymentRepository(db)
 	k8sDeploymentManager, err := k8sclient.NewDeploymentManager(".", &workerCfg.K8s, log)
 	if err != nil {
 		log.Fatal("Failed to create k8s deployment manager", zap.Error(err))
@@ -63,7 +64,8 @@ func main() {
 	// Create consumer and wire services
 	nc := consumer.NewNATSConsumer(natsConn.JS, natsConn.Conn, log, workerCfg.Consumer.ShutdownTimeout)
 	deploymentRequest := workerService.NewDeploymentRequestService(deploymentRequestRepo, k8sDeploymentManager, log)
-	worker.SetupRouter(nc, &workerCfg.Consumer, deploymentRequest, log)
+	deploymentUpdate := workerService.NewDeploymentUpdateService(deploymentRepo, k8sDeploymentManager, log)
+	worker.SetupRouter(nc, &workerCfg.Consumer, deploymentRequest, deploymentUpdate, log)
 
 	// Start consuming
 	if err := nc.Run(); err != nil {

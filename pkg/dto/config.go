@@ -65,6 +65,7 @@ type K8sConfig struct {
 type ConsumerConfig struct {
 	ShutdownTimeout       time.Duration      `mapstructure:"shutdown_timeout"`
 	DeploymentRequestTask ConsumerTypeConfig `mapstructure:"deployment_request_task"`
+	DeploymentUpdateTask  ConsumerTypeConfig `mapstructure:"deployment_update_task"`
 }
 
 // ConsumerTypeConfig holds per-task-type configuration for a consumer route

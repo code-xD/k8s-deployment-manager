@@ -29,6 +29,11 @@ consumer:
     queue_group: "deployment-workers"
     # task_timeout: 1m    # optional
     # retry_count: 1      # optional
+  deployment_update_task:
+    channel: "deployment.updates"
+    queue_group: "deployment-workers"
+    # task_timeout: 1m    # optional
+    # retry_count: 1      # optional
 
 watcher:
   resync_period: 10m
