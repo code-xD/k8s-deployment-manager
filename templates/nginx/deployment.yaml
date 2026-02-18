@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.Identifier}}
+  namespace: {{.Namespace}}
+  labels:
+    app: {{.Identifier}}
+    name: {{.Name}}
+    identifier: {{.Identifier}}
+    user-id: {{.UserID}}
+    request-id: {{.RequestID}}
+    deployment-request-id: {{.DeploymentRequestID}}
+    managed-by: {{.ManagedBy}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{.Identifier}}
+  template:
+    metadata:
+      labels:
+        app: {{.Identifier}}
+        name: {{.Name}}
+        identifier: {{.Identifier}}
+        managed-by: {{.ManagedBy}}
+    spec:
+      containers:
+        - name: {{.Identifier}}
+          image: {{.Image}}
+          ports:
+            - containerPort: 80
+          {{if .HasCustomHTML}}
+          volumeMounts:
+            - name: html-content
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+          {{end}}
+      {{if .HasCustomHTML}}
+      volumes:
+        - name: html-content
+          configMap:
+            name: {{.Identifier}}-html
+      {{end}}

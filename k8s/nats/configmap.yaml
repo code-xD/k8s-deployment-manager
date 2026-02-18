@@ -10,3 +10,6 @@ data:
     http: 8222
     max_payload: 1MB
     max_connections: 100
+    jetstream {
+      store_dir: /data/jetstream
+    }
